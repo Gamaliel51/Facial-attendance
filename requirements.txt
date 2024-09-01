@@ -78,7 +78,6 @@ python-engineio==4.9.1
 python-socketio==5.11.3
 pytweening==1.2.0
 pytz==2024.1
-pywin32==306
 requests==2.32.3
 rest-framework-simplejwt==0.0.2
 rich==13.7.1
