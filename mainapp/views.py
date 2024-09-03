@@ -48,7 +48,7 @@ class AddCourse(APIView):
     def post(self, request):
 
         course_name = request.data.get('course_name')
-        course_code = request.data.get('course_data')
+        course_code = request.data.get('course_code')
 
         teacher = TeacherModel.objects.get(username=str(request.user))
 
