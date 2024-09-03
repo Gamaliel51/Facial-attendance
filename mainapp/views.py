@@ -7,6 +7,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from mainapp.serializers import CourseSerializer
 
 import environ
 import uuid
@@ -74,9 +75,10 @@ class GetAllCoursesSingle(APIView):
 
         courses = CourseModel.objects.filter(teacher_id=teacher.teacher_id)
 
-        data = list(courses)
+        # data = list(courses)
+        serialized_courses = CourseSerializer(courses, many=True)
 
-        return Response({'status': 'success', 'data': data})
+        return Response({'status': 'success', 'data': serialized_courses.data})
 
 
 @permission_classes([AllowAny])
