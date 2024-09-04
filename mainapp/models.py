@@ -12,7 +12,7 @@ class TeacherModel(models.Model):
 
 class CourseModel(models.Model):
     teacher_id = models.CharField(max_length=255)
-    course_code = models.CharField(max_length=255)
+    course_code = models.CharField(max_length=255, unique=True)
     course_name = models.CharField(max_length=255)
     teacher_name = models.CharField(max_length=255)
 

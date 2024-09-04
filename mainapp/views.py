@@ -1,7 +1,5 @@
-from django.shortcuts import render
 from django.contrib.auth.models import User
 from mainapp.models import TeacherModel, CourseModel
-# from mainapp.chatbot.testscript_model import model, bag_of_words, words, labels, __location__
 from rest_framework.decorators import permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
