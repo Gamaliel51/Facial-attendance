@@ -1,0 +1,19 @@
+.spinner_bg {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.spinner {
+  border: 1px solid transparent;
+  border-top-width: 2px;
+  border-top-color: rgba(209, 213, 219, 1);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  height: 1.2rem;
+  width: 1.2rem;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

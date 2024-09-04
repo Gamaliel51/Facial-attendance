@@ -1,9 +1,7 @@
 import axios from "axios";
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-type Props = {};
-
-const RecordAttendance = (props: Props) => {
+const RecordAttendance = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
