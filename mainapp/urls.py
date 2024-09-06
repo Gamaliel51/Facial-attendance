@@ -13,4 +13,5 @@ urlpatterns = [
     path("get-teacher-courses/", mainapp.views.GetAllCoursesSingle.as_view()),
     path("get-all-courses/", mainapp.views.GetAllCourses.as_view()),
     path("get-coursereg-link/", mainapp.views.GetCourseLink.as_view()),
+    path("register-studnt/<str:id>/", mainapp.views.SubmitRegistration.as_view()),
 ]

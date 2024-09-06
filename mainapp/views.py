@@ -7,6 +7,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from mainapp.serializers import CourseSerializer
 
+from facial_functions.facial_lib import execute_training
+
 import environ
 import uuid
 
@@ -57,8 +59,6 @@ class AddCourse(APIView):
 
         new_course.save()
 
-        # create individual model for course
-
         return Response({'status': 'success'})
 
 
@@ -107,10 +107,41 @@ class GetCourseLink(APIView):
         course = CourseModel.objects.get(teacher_id=teacher.teacher_id, course_code=course_code, course_name=course_name)
 
         if course:
-            link_id = f"{course.course_code} {teacher.teacher_id}"
+            link_id = f"{course.course_code}-{teacher.teacher_id}"
 
             return Response({'status': 'success', 'link_id': link_id})
 
         return Response({'message': 'fail'})
 
+
+@permission_classes([AllowAny])
+@authentication_classes([])
+class SubmitRegistration(APIView):
+
+    def post(self, request, course_id):
+
+        if not course_id:
+            return Response({'error': 'Invalid ID'}, status=400)
+
+        video_file = request.FILES.get('video')
+        student_id = request.data.get('student_id')
+
+        url_data = course_id.split('-')
+
+        course_code = url_data[0]
+        teacher_id = url_data[1]
+
+        stored_file_name = f"{student_id}.mp4"
+
+        with open(stored_file_name, 'wb+') as f:
+            f.write(video_file.read())
+
+        # add part to check if course exists
+
+        success, response = execute_training(student_id=student_id, video_dir=stored_file_name, model_name=course_id)
+
+        if success:
+            return Response({'message': 'success'}, status=200)
+
+        return Response({'message': response}, status=400)
 
