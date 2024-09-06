@@ -124,7 +124,10 @@ class SubmitRegistration(APIView):
             return Response({'error': 'Invalid ID'}, status=400)
 
         video_file = request.FILES.get('video')
-        student_id = request.data.get('student_id')
+        matric = request.data.get('matric')
+        name = request.data.get('name')
+
+        student_id = f"{matric}-{name}"
 
         url_data = course_id.split('-')
 
