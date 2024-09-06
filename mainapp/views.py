@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from mainapp.serializers import CourseSerializer
 
-from facial_functions.facial_lib import execute_training
+from mainapp.facial_functions.facial_lib import execute_training
 
 import environ
 import uuid
