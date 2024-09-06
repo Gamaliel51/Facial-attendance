@@ -118,7 +118,9 @@ class GetCourseLink(APIView):
 @authentication_classes([])
 class SubmitRegistration(APIView):
 
-    def post(self, request, course_id):
+    def post(self, request, id):
+
+        course_id = id
 
         if not course_id:
             return Response({'error': 'Invalid ID'}, status=400)
