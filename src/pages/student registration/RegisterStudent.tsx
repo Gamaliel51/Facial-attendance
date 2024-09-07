@@ -1,215 +1,213 @@
-import React, { useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import api from "../../api/api";
 import axios from "axios";
 
-interface StudentData {
-  studentName: string;
-  studentMatric: string;
-  video: string;
-}
+const FacialRegPage = () => {
+  const navigate = useNavigate();
 
-const RegisterStudent = () => {
-  // Student form data state
-  const [formData, setFormData] = useState<StudentData>({
-    studentName: "",
-    studentMatric: "",
-    video: "",
-  });
+  const [error, setError] = useState("");
+  const [name, setName] = useState("");
+  const [matric, setMatric] = useState("");
+  const [recordedVideo, setRecordedVideo] = useState<any>(null);
+  const [isrecording, setIsRecording] = useState(false);
+  const [mediaRecorder, setMediaRecorder] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [cameraMode, setCameraMode] = useState<"user" | "environment">("user"); // Front/Back camera control
+  const chunks = useRef<any>([]);
+  const videoRef = useRef<any>(null);
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const previewRef = useRef<HTMLVideoElement | null>(null);
+  const Link_id = window.location.pathname.split("/")[2];
 
-  // Form input change handler
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prevData) => ({ ...prevData, [name]: value }));
-  };
-
-  // Start recording
-  const handleStartRecording = async () => {
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: cameraMode },
-        audio: true,
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-      }
-
-      const recorder = new MediaRecorder(newStream);
-      let chunks: Blob[] = [];
-
-      recorder.ondataavailable = (e) => {
-        chunks.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        setRecordedBlob(blob);
-        if (previewRef.current) {
-          previewRef.current.src = URL.createObjectURL(blob);
-          previewRef.current.play();
+  useEffect(() => {
+    if (!submitSuccess) {
+      const video = videoRef.current;
+      if (isrecording) {
+        video.srcObject = mediaRecorder
+          ? new MediaStream(mediaRecorder.stream.getTracks())
+          : null;
+      } else {
+        video.srcObject = null;
+        if (recordedVideo) {
+          video.src = recordedVideo;
+          video.play();
         }
-      };
-
-      recorder.start();
-      setMediaRecorder(recorder);
-      setStream(newStream);
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Error accessing media devices.", error);
+      }
     }
+  }, [isrecording, mediaRecorder, recordedVideo, submitSuccess]);
+
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 1280, height: 720 },
+      audio: true,
+    });
+    const options = { mimeType: "video/mp4" };
+    const newMediaRecorder = new MediaRecorder(stream, options);
+
+    newMediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        chunks.current.push(event.data);
+      }
+    };
+
+    newMediaRecorder.onstop = () => {
+      const blob = new Blob(chunks.current, { type: "video/mp4" });
+      const videoUrl = URL.createObjectURL(blob);
+      setRecordedVideo(videoUrl);
+      chunks.current = [];
+    };
+
+    newMediaRecorder.start();
+    setMediaRecorder(newMediaRecorder);
+    setIsRecording(true);
   };
 
-  // Stop recording
-  const handleStopRecording = () => {
+  const stopRecording = async () => {
     if (mediaRecorder) {
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks.current, { type: "video/mp4" });
+        const videoUrl = URL.createObjectURL(blob);
+        setRecordedVideo(videoUrl);
+        chunks.current = [];
+      };
       mediaRecorder.stop();
       setIsRecording(false);
     }
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
   };
 
-  // Switch camera
-  const handleSwitchCamera = () => {
-    setCameraMode((prevMode) => (prevMode === "user" ? "environment" : "user"));
-  };
-
-  // Convert Blob to Base64 string
-  const convertBlobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  };
-
-  // Form submission handler
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!recordedBlob) {
-      alert("Please record a video for facial recognition.");
+  const handleSubmit = async () => {
+    if (name === "" || matric === "" || !recordedVideo) {
+      setError("Please enter your name and matric number and record video");
       return;
     }
+    if (recordedVideo) {
+      setLoading(true);
+      const blob = await fetch(recordedVideo).then((res) => res.blob());
+      const file = new File([blob], `${name}.mp4`, { type: "video/mp4" });
+      const formData = new FormData();
+      formData.append("video", file);
+      formData.append("name", name);
+      formData.append("matric", matric);
 
-    // Convert video Blob to Base64 string
-    const videoBase64 = await convertBlobToBase64(recordedBlob);
+      // console.log(formData);
 
-    // Combine form data with video
-    const payload = {
-      ...formData,
-      video: videoBase64,
-    };
+      // const res = await api.post(`register-studnt/${Link_id}/`, formData);
+      // console.log(res.data);
 
-    // Log data for testing
-    console.log("Payload to be sent:", payload);
+      console.log(localStorage.getItem("token"));
 
-    // In a real-world scenario, this is where you'd send data to the backend
+      const config = {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      };
+
+      const res = await axios.post(
+        `https://4ed0-102-91-4-18.ngrok-free.app/register-studnt/${Link_id}/`,
+        formData,
+        config
+      );
+
+      if (res.status === 200 || 201) {
+        setSubmitSuccess(true);
+        // setTimeout(() => alert("Facial Registration Success"), 3500);
+      }
+    }
   };
 
+  if (loading && !submitSuccess) {
+    return (
+      <div className="min-h-screen w-full flex flex-col justify-center bg-blue-100">
+        <div className="min-h-[50vh] w-2/5 mx-auto flex flex-col items-center justify-center rounded-3xl shadow-2xl bg-white">
+          <p className="text-3xl font-semibold">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && submitSuccess) {
+    return (
+      <div className="min-h-screen w-full flex flex-col justify-center bg-blue-100">
+        <div className="min-h-[50vh] w-2/5 mx-auto flex flex-col items-center justify-center rounded-3xl shadow-2xl bg-white">
+          <p className="text-3xl font-semibold text-green-400">
+            Facial Regristration success
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // NOTE: finish confirmation part for submission
+
   return (
-    <div className="max-w-xl mx-auto bg-white p-6 rounded-md shadow-md">
-      <h2 className="text-3xl font-semibold mb-6">Register Student</h2>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium">Student Name</label>
+    <div className="min-h-screen w-full flex flex-col justify-center bg-blue-100">
+      <div className="min-h-[90vh] w-4/5 mx-auto flex flex-col rounded-3xl shadow-2xl bg-white">
+        <h1 className="w-full text-center my-4 text-3xl font-bold">
+          Student Registration
+        </h1>
+        <div className="flex">
           <input
+            className="w-2/5 mx-auto px-4 py-2 rounded-xl bg-blue-100"
+            // name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Enter Your Name"
             type="text"
-            name="studentName"
-            value={formData.studentName}
-            onChange={handleInputChange}
-            className="border p-3 mt-1 block w-full rounded-md focus:ring-blue-500 focus:border-blue-500"
-            required
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">Matric No</label>
           <input
+            className="w-2/5 mx-auto px-4 py-2 rounded-xl bg-blue-100"
+            value={matric}
+            onChange={(e) => setMatric(e.target.value)}
+            placeholder="Enter Your Matric Number"
             type="text"
-            name="studentMatric"
-            value={formData.studentMatric}
-            onChange={handleInputChange}
-            className="border p-3 mt-1 block w-full rounded-md focus:ring-blue-500 focus:border-blue-500"
-            required
           />
         </div>
 
-        {/* Instructions for facial attendance */}
-        <div className="bg-blue-100 p-4 rounded-md mb-6">
-          <h3 className="text-xl font-bold">Instructions for Video Capture:</h3>
-          <ul className="list-disc ml-5 mt-2 text-sm">
-            <li>Ensure your face is clearly visible in the frame.</li>
-            <li>Use a well-lit environment to capture a clear video.</li>
-            <li>Avoid any distractions in the background.</li>
-            <li>Remain still and look directly at the camera for a few seconds.</li>
-          </ul>
-        </div>
-
-        {/* Video capture section */}
-        <div className="flex flex-col items-center gap-4">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            className="w-full h-64 bg-black rounded-md"
-          />
-
-          <video ref={previewRef} controls className="w-full h-64 bg-black rounded-md" />
-
-          <div className="flex gap-4">
-            {isRecording ? (
-              <button
-                type="button"
-                onClick={handleStopRecording}
-                className="bg-red-500 text-white py-2 px-4 rounded-md"
-              >
-                Stop Recording
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleStartRecording}
-                className="bg-blue-500 text-white py-2 px-4 rounded-md"
-              >
-                Start Recording
-              </button>
-            )}
-            {!isRecording && (
-              <button
-                type="button"
-                onClick={handleSwitchCamera}
-                className="bg-yellow-500 text-white py-2 px-4 rounded-md"
-              >
-                Switch Camera
-              </button>
-            )}
+        {/* <h1 className="w-full text-center mt-4 text-xl font-bold">
+          Register Student Face
+        </h1> */}
+        <div className="h-fit w-fit mx-auto flex flex-row">
+          <div className="h-[70vh] w-9/12 mx-20 my-10 flex flex-col justify-between bg-black">
+            <video
+              ref={videoRef}
+              controls
+              autoPlay
+              className="h-full w-full bg-black"
+            ></video>
+          </div>
+          <div className="h-[50vh] w-1/12 my-auto pr-20 flex flex-col items-center justify-evenly">
+            <p className="text-xl font-semibold">
+              {!isrecording ? "Idle" : "Recording"}
+            </p>
+            <button
+              className="h-20 w-20 font-bold rounded-full text-center bg-green-400 hover:bg-green-500"
+              onClick={startRecording}
+            >
+              Start
+            </button>
+            <button
+              className="h-20 w-20 font-bold rounded-full text-center bg-red-300 hover:bg-red-400"
+              onClick={stopRecording}
+            >
+              Stop
+            </button>
+            <button
+              className="h-20 w-20 font-bold rounded-full text-center bg-blue-100 hover:bg-blue-300"
+              onClick={handleSubmit}
+            >
+              Submit
+            </button>
           </div>
         </div>
+        <p className="w-full text-center text-sm text-red-500">{error}</p>
 
-        {/* Submit form button */}
-        <div className="text-center">
-          <button
-            type="submit"
-            className="bg-green-500 text-white py-2 px-6 rounded-md"
-            disabled={!recordedBlob}
-          >
-            Register Student
-          </button>
-        </div>
-      </form>
+        <p className="w-full text-center text-sm italic pb-6">
+          Record face while facing straight for 2-3 seconds only
+        </p>
+      </div>
     </div>
   );
 };
 
-export default RegisterStudent;
+export default FacialRegPage;
