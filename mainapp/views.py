@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from mainapp.models import TeacherModel, CourseModel
+from mainapp.models import TeacherModel, CourseModel, Attendance, AttendanceRecord
 from rest_framework.decorators import permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -149,4 +149,105 @@ class SubmitRegistration(APIView):
             return Response({'message': 'success'}, status=200)
 
         return Response({'message': response}, status=400)
+
+
+# Save attendance
+class AttendanceAPIView(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Extract data from the request
+            date = request.data.get('date')
+            attendance_list = request.data.get('attendance')
+            course_code = request.data.get('course_code')
+            course_name = request.data.get('course_name')
+            teacher_id = request.data.get('teacher_id')
+
+            # Validate that all required fields are present
+            if not all([date, attendance_list, course_code, course_name, teacher_id]):
+                return Response({"error": "Missing fields in the request"}, status=400)
+
+            # Create an Attendance object
+            attendance_obj = Attendance.objects.create(
+                date=date,
+                course_code=course_code,
+                course_name=course_name,
+                teacher_id=teacher_id
+            )
+
+            # Iterate through the attendance list and save individual records
+            for record in attendance_list:
+                matric = record.get('matric')
+                name = record.get('name')
+                time_str = record.get('time')
+
+                # Parse the time and create an AttendanceRecord object
+                time = time_str
+                if time is None:
+                    return Response({"error": "Invalid time format"}, status=400)
+
+                attendance_record = AttendanceRecord.objects.create(
+                    matric=matric,
+                    name=name,
+                    time=time
+                )
+
+                # Add the individual record to the attendance object
+                attendance_obj.records.add(attendance_record)
+
+            attendance_obj.save()
+
+            return Response({"message": "Attendance saved successfully"}, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+# fetch attendance record
+class AttendanceRecordsAPIView(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Get course_code and teacher_id from query parameters
+        course_code = request.query_params.get('course_code')
+        teacher_id = request.query_params.get('teacher_id')
+
+        # Validate that both course_code and teacher_id are provided
+        if not course_code or not teacher_id:
+            return Response({"error": "course_code and teacher_id are required"}, status=400)
+
+        try:
+            # Fetch all attendance records for the specified course and teacher
+            attendance_records = Attendance.objects.filter(course_code=course_code, teacher_id=teacher_id)
+
+            if not attendance_records.exists():
+                return Response({"error": "No attendance records found"}, status=404)
+
+            # Format the response in the required structure
+            attendance_data = []
+            for attendance in attendance_records:
+                # Create the attendance list for each attendance object
+                records = [
+                    {"matric": record.matric, "name": record.name, "time": record.time}
+                    for record in attendance.records.all()
+                ]
+
+                attendance_data.append({
+                    "date": attendance.date,
+                    "attendance": records,
+                    "course_code": attendance.course_code,
+                    "course_name": attendance.course_name,
+                    "teacher_id": attendance.teacher_id
+                })
+
+            return Response(attendance_data, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
 
