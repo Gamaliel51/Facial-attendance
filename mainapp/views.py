@@ -164,7 +164,9 @@ class AttendanceAPIView(APIView):
             attendance_list = request.data.get('attendance')
             course_code = request.data.get('course_code')
             course_name = request.data.get('course_name')
-            teacher_id = request.data.get('teacher_id')
+
+            teacher = TeacherModel.objects.get(username=str(request.user))
+            teacher_id = teacher.teacher_id
 
             # Validate that all required fields are present
             if not all([date, attendance_list, course_code, course_name, teacher_id]):
@@ -215,7 +217,9 @@ class AttendanceRecordsAPIView(APIView):
     def get(self, request):
         # Get course_code and teacher_id from query parameters
         course_code = request.query_params.get('course_code')
-        teacher_id = request.query_params.get('teacher_id')
+
+        teacher = TeacherModel.objects.get(username=str(request.user))
+        teacher_id = teacher.teacher_id
 
         # Validate that both course_code and teacher_id are provided
         if not course_code or not teacher_id:
@@ -249,5 +253,19 @@ class AttendanceRecordsAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
+
+class GetTeacherID(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        teacher = TeacherModel.objects.get(username=str(request.user))
+        teacher_id = teacher.teacher_id
+
+        return Response({'teacher_id': teacher_id}, status=200)
+
 
 

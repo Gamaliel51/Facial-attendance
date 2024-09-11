@@ -16,4 +16,5 @@ urlpatterns = [
     path('save-attendance/', mainapp.views.AttendanceAPIView.as_view()),
     path('fetch-attendance-records/', mainapp.views.AttendanceRecordsAPIView.as_view()),
     path("register-studnt/<str:id>/", mainapp.views.SubmitRegistration.as_view()),
+    path('get-teacher-id/', mainapp.views.GetTeacherID.as_view()),
 ]
