@@ -1,13 +1,14 @@
 # consumers.py
 import os
 import base64
-from channels.generic.websocket import AsyncWebsocketConsumer
 import cv2
 import numpy as np
 import json
 import pickle
+from datetime import datetime
 from keras_facenet import FaceNet
 from asgiref.sync import async_to_sync
+from channels.generic.websocket import AsyncWebsocketConsumer
 
 
 class VideoConsumer(AsyncWebsocketConsumer):
@@ -22,19 +23,39 @@ class VideoConsumer(AsyncWebsocketConsumer):
         course_id = json.loads(text_data)['course_id']
         image = self.decode_base64_image(frame_data)
 
+        if image is None:
+            await self.send(json.dumps({'result': 'Frame failed'}))
+            return
+
         # Process the frame (example: convert to grayscale)
         processed_image = self.process_frame(image, course_id)
 
+        if processed_image is None:
+            await self.send(json.dumps({'result': 'No face found in frame'}))
+            return
+
+        matric = processed_image.split('-')[0]
+        name = processed_image.split('-')[1]
+
+        # Get the current time
+        current_time = datetime.now().time()
+
+        # Convert the time to a string in the format 'HH:MM'
+        time_str = current_time.strftime('%H:%M')
+
         # Send the processed frame back to the frontend (optional)
-        await self.send(json.dumps({'result': 'Frame processed successfully'}))
+        await self.send(json.dumps({'result': 'Frame processed successfully', 'matric': matric, 'name': name, 'time': time_str}))
 
     def decode_base64_image(self, frame_data):
         # Decode the base64 image
-        image_data = frame_data.split(',')[1]
-        img = base64.b64decode(image_data)
-        np_arr = np.frombuffer(img, np.uint8)
-        image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        return image
+        try:
+            image_data = frame_data.split(',')[1]
+            img = base64.b64decode(image_data)
+            np_arr = np.frombuffer(img, np.uint8)
+            image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            return image
+        except:
+            return None
 
     def process_frame(self, image, model_file='facial_model.pkl'):
         # Example: convert the frame to grayscale
@@ -42,7 +63,13 @@ class VideoConsumer(AsyncWebsocketConsumer):
         frame = image
         facenet = FaceNet()
 
-        # Load the model (face embeddings)
+        # Get the directory of the current file and go back one folder
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        # Construct the full path to 'mainapp/facial_functions/model_file'
+        model_file = os.path.join(base_dir, 'facial_functions', model_file)
+
+        # Check if the model file exists and load it
         if os.path.exists(model_file):
             with open(model_file, 'rb') as f:
                 face_embeddings = pickle.load(f)
