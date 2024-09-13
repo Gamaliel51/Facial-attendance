@@ -104,6 +104,12 @@ def split_video_to_frames(video_path, folder_name):
 def train_facial_model(folder_name, model_file='facial_model.pkl'):
     facenet = FaceNet()
 
+    # Get the directory of the current file and go back one folder
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Construct the full path to 'mainapp/facial_functions/model_file'
+    model_file = os.path.join(os.getcwd(), 'facial_functions', model_file)
+
     # Load or create the model
     if os.path.exists(model_file):
         with open(model_file, 'rb') as f:
@@ -196,6 +202,7 @@ def identify_faces_live(model_file='facial_model.pkl'):
 def execute_training(student_id, video_dir, model_name):
     # 1. Split the video into frames and save them in a folder
     success, message = split_video_to_frames(video_dir, student_id)
+    model_name += '.pkl'
 
     if success:
         # 2. Train the facial model with the frames in the folder

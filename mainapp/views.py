@@ -107,7 +107,7 @@ class GetCourseLink(APIView):
         course = CourseModel.objects.get(teacher_id=teacher.teacher_id, course_code=course_code, course_name=course_name)
 
         if course:
-            link_id = f"{course.course_code}-{teacher.teacher_id}"
+            link_id = f"{course.course_code}_{teacher.teacher_id}"
 
             return Response({'status': 'success', 'link_id': link_id})
 
@@ -131,7 +131,7 @@ class SubmitRegistration(APIView):
 
         student_id = f"{matric}-{name}"
 
-        url_data = course_id.split('-')
+        url_data = course_id.split('_')
 
         course_code = url_data[0]
         teacher_id = url_data[1]
@@ -205,6 +205,7 @@ class AttendanceAPIView(APIView):
             return Response({"message": "Attendance saved successfully"}, status=201)
 
         except Exception as e:
+            print(str(e))
             return Response({"error": str(e)}, status=500)
 
 

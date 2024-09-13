@@ -21,6 +21,11 @@ class VideoConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         frame_data = json.loads(text_data)['frame']
         course_id = json.loads(text_data)['course_id']
+
+        course_id += '.pkl'
+
+        print(f"COURSE ID: {course_id}")
+
         image = self.decode_base64_image(frame_data)
 
         if image is None:
@@ -68,6 +73,8 @@ class VideoConsumer(AsyncWebsocketConsumer):
 
         # Construct the full path to 'mainapp/facial_functions/model_file'
         model_file = os.path.join(base_dir, 'facial_functions', model_file)
+
+        print(f"MODEL PATH: {model_file}")
 
         # Check if the model file exists and load it
         if os.path.exists(model_file):
