@@ -90,26 +90,9 @@ const FacialRegPage = () => {
       formData.append("name", name);
       formData.append("matric", matric);
 
-      // console.log(formData);
+      const response = await api.post(`/register-studnt/${Link_id}/`, formData);
 
-      // const res = await api.post(`register-studnt/${Link_id}/`, formData);
-      // console.log(res.data);
-
-      console.log(localStorage.getItem("token"));
-
-      const config = {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      };
-
-      const res = await axios.post(
-        `http://4.tcp.eu.ngrok.io:15884/register-studnt/${Link_id}/`,
-        formData,
-        config
-      );
-
-      if (res.status === 200 || 201) {
+      if (response.status === 200 || 201) {
         setSubmitSuccess(true);
         // setTimeout(() => alert("Facial Registration Success"), 3500);
       }
