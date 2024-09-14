@@ -3,17 +3,20 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "../api/api";
 import Spinner from "./spinner/Spinner";
 
-
 const Cards = () => {
   const [courses, setCourses] = useState<any[]>([]);
-  const navigate = useNavigate();  
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         const response = await api.get("/get-teacher-courses/");
         console.log(response.data.data);
+        // localStorage.
         setCourses(response.data.data);
+        // const {teacher_id} = response.data.data
+        // console.log(teacher_id)
+        // localStorage.setItem
       } catch (error) {
         console.error("Error fetching courses:", error);
       }
@@ -33,23 +36,24 @@ const Cards = () => {
 
       console.log("Registration link ID:", link_id);
       // navigate(`/register-student/${link_id}`);
-      alert(`Course registration link: ${window.location.origin}/register-student/${link_id}`);
-    //popup alert with the registration link
-      
-
+      alert(
+        `Course registration link: ${window.location.origin}/register-student/${link_id}`
+      );
+      //popup alert with the registration link
     } catch (error) {
       console.error("Error getting course registration link:", error);
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div
+      className={`grid grid-cols-1 gap-6 ${
+        courses && courses.length > 0 ? "lg:grid-cols-3" : ""
+      }`}
+    >
       {courses && courses.length > 0 ? (
-        courses.map((course:any) => (
-          <div
-            key={course.id}
-            className="bg-white p-4 shadow-md rounded"
-          >
+        courses.map((course: any) => (
+          <div key={course.id} className="bg-white p-4 shadow-md rounded">
             <img
               src="https://via.placeholder.com/300"
               alt="course"
@@ -69,16 +73,34 @@ const Cards = () => {
               >
                 Course Registration
               </button>
-              <Link to="record-attendance" className="text-blue-600">
+              <Link
+                state={{
+                  courseCode: course.course_code,
+                  teacherID: course.teacher_id,
+                  courseName: course.course_name,
+                }}
+                to="record-attendance"
+                className="text-blue-600"
+              >
                 Video Recording
+              </Link>
+              <Link
+                state={{
+                  courseCode: course.course_code,
+                  courseName: course.course_name,
+                }}
+                to="attendance-record"
+                className="text-blue-600"
+              >
+                Attendance Records
               </Link>
             </div>
           </div>
         ))
       ) : (
-        <div className="flex justify-center items-center">
-          <Spinner/>
-          </div>
+        <div className=" grid grid-cols-1 ">
+          <Spinner size="2rem" color="#894a8b" duration="1s" />
+        </div>
       )}
     </div>
   );

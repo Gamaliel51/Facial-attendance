@@ -104,7 +104,7 @@ const FacialRegPage = () => {
       };
 
       const res = await axios.post(
-        `https://4ed0-102-91-4-18.ngrok-free.app/register-studnt/${Link_id}/`,
+        `http://4.tcp.eu.ngrok.io:15884/register-studnt/${Link_id}/`,
         formData,
         config
       );

@@ -12,7 +12,7 @@ const CreateCourse = () => {
 
   const [courseData, setCourseData] = useState<Courses>({
     course_name: "",
-    course_code: "",
+    course_code: "".replace(/\s+/g, ""),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,12 +55,15 @@ const CreateCourse = () => {
         <input
           type="text"
           name="course_code"
-          value={courseData.course_code}
+          value={courseData.course_code.replace(/\s+/g, "")}
           onChange={handleChange}
           className="mb-3 p-2 border rounded w-full"
         />{" "}
-        <button type="submit" className="bg-[#894a8b] text-white p-2 rounded w-32">
-        {loading ? <Spinner/> : "Add Course"}
+        <button
+          type="submit"
+          className="bg-[#894a8b] text-white p-2 rounded w-32"
+        >
+          {loading ? <Spinner /> : "Add Course"}
         </button>
       </form>
     </div>

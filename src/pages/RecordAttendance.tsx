@@ -1,148 +1,199 @@
-import axios from "axios";
-import { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
+import api from "../api/api";
 
-const RecordAttendance = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
-    null
-  );
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [cameraMode, setCameraMode] = useState<"user" | "environment">("user"); // Controls front/back camera
+interface AttendanceResponse {
+  matric: string;
+  name: string;
+  time: string;
+  result: string;
+}
+
+const VideoStream: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const previewRef = useRef<HTMLVideoElement | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const [lastFrameTime, setLastFrameTime] = useState(0); // Track time of last frame sent
+  const [tempResponses, setTempResponses] = useState<AttendanceResponse[]>([]);
+  const [finalAttendance, setFinalAttendance] = useState<AttendanceResponse[]>(
+    []
+  );
 
-  // Start recording
-  const handleStartRecording = async () => {
-    try {
-      // Get access to user's camera (front or back)
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: cameraMode },
-        audio: true,
-      });
+  const location = useLocation();
 
-      // Set up the video stream for display
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-      }
+  const FPS = 0.1; // Desired frames per second
+  const FRAME_INTERVAL = 1000 / FPS; // Time between frames in milliseconds
 
-      // Create a MediaRecorder instance
-      const recorder = new MediaRecorder(newStream);
-      let chunks: Blob[] = [];
+  const { courseCode, teacherID, courseName } = location.state || {};
+  const course_id = `${courseCode}_${teacherID}`;
+  // .replace(/\s+/g, "")
+  console.log(course_id);
 
-      recorder.ondataavailable = (e) => {
-        chunks.push(e.data);
-      };
+  useEffect(() => {
+    // Process responses whenever tempResponses changes
+    processResponses();
+    console.log(tempResponses);
+    console.log(finalAttendance);
+  }, [tempResponses]);
 
-      recorder.onstop = () => {
-        // Create a Blob from the recorded chunks and set it for preview
-        const blob = new Blob(chunks, { type: "video/webm" });
-        setRecordedBlob(blob);
-        if (previewRef.current) {
-          previewRef.current.src = URL.createObjectURL(blob);
-          previewRef.current.play();
+  // Start video streaming from the user's webcam
+  const startVideoStream = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          captureFrames();
         }
+      })
+      .catch((err) => console.error("Error accessing webcam:", err));
+  };
+
+  const stopVideoStream = () => {
+    const mediaStream = videoRef.current?.srcObject as MediaStream;
+    mediaStream?.getTracks().forEach((track) => track.stop());
+
+    // Close the WebSocket connection
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null; // Set to null to prevent further use
+      console.log("WebSocket closed.");
+    }
+  };
+
+  // Capture video frames and send to backend using WebSocket
+  const captureFrames = () => {
+    const ws = new WebSocket("ws://4.tcp.eu.ngrok.io:16389/ws/video/ "); // WebSocket connection to backend
+    wsRef.current = ws; // Store WebSocket reference
+
+    const canvas = document.createElement("canvas");
+    const video = videoRef.current;
+    const ctx = canvas.getContext("2d");
+
+    if (!video || !ctx) return;
+
+    ws.onopen = () => {
+      const sendFrame = () => {
+        const currentTime = Date.now();
+
+        // Only capture a frame if enough time has passed since the last one
+        if (currentTime - lastFrameTime >= FRAME_INTERVAL) {
+          setLastFrameTime(currentTime); // Update the time of the last sent frame
+
+          // Set up the canvas dimensions
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+
+          // Draw the video frame on the canvas
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          // Convert the frame to base64 and send to backend
+          const frameData = canvas.toDataURL("image/jpeg");
+          ws.send(
+            JSON.stringify({
+              frame: frameData,
+              course_id,
+            })
+          );
+        }
+        0;
+        // Capture the next frame after a small delay
+        setTimeout(sendFrame, 10000);
       };
+      sendFrame();
+    };
 
-      // Start recording
-      recorder.start();
-      setMediaRecorder(recorder);
-      setStream(newStream); // Store the stream to stop it later
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Error accessing media devices.", error);
-    }
+    // Handle results from backend
+    ws.onmessage = (event: MessageEvent) => {
+      const data = JSON.parse(event.data);
+      console.log("Processed data from backend:", data);
+      if (data.result !== "No face found in frame") {
+        setTempResponses((prevResponses) => [...prevResponses, data]);
+      } else {
+        console.log("Skipping response due to failure: No face found in frame");
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+  };
+  // Process tempResponses to find students with at least 3 records and add the latest one to finalAttendance
+  const processResponses = () => {
+    const responseMap: Record<string, AttendanceResponse[]> = {};
+
+    // Group responses by matric and name
+    tempResponses.forEach((response) => {
+      const key = `${response.matric}`;
+      if (!responseMap[key]) {
+        responseMap[key] = [];
+      }
+      responseMap[key].push(response);
+    });
+
+    const finalAttendanceData: AttendanceResponse[] = [];
+    // For each student, if there are at least 3 records, add the latest one to finalAttendance
+    Object.values(responseMap).forEach((responses) => {
+      if (responses.length >= 3) {
+        const latestResponse = responses.reduce((latest, current) =>
+          new Date(current.time) > new Date(latest.time) ? current : latest
+        );
+        finalAttendanceData.push(latestResponse);
+        // setTempResponses([]); // Clear tempResponses
+        // setFinalAttendance((prevAttendance) => {
+        //   // Check if the student is already in the finalAttendance
+        //   const existingIndex = prevAttendance.findIndex(
+        //     (entry) => entry.matric === latestResponse.matric
+        //   );
+
+        //   if (existingIndex !== -1) {
+        //     // If the student already exists, replace with the latest entry
+        //     const updatedAttendance = [...prevAttendance];
+        //     updatedAttendance[existingIndex] = latestResponse;
+        //     return updatedAttendance;
+        //   } else {
+        //     // Otherwise, add the new entry
+        //     return [...prevAttendance, latestResponse];
+        //   }
+        // });
+        
+      }
+    });
+
+    setFinalAttendance(finalAttendanceData);
+    console.log("Final Attendance:", finalAttendanceData);
   };
 
-  // Stop recording
-  const handleStopRecording = () => {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-    }
+  // Submit finalAttendance data to the backend
+  const submitAttendance = async () => {
+    const attendanceData = {
+      date: new Date().toISOString().split("T")[0], // current date
+      attendance: finalAttendance,
+      course_code: courseCode,
+      course_name: courseName, // Example course name
+      teacher_id: teacherID,
+    };
 
-    // Stop all tracks from the stream (camera and mic)
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-  };
-
-  // Switch camera between front and back
-  const handleSwitchCamera = () => {
-    setCameraMode((prevMode) => (prevMode === "user" ? "environment" : "user"));
-  };
-
-  // Send the recorded video to the backend
-  const handleSendToBackend = async () => {
-    if (!recordedBlob) return;
-
-    // Send the blob to the backend
-    const formData = new FormData();
-    formData.append("video", recordedBlob, "attendance-video.webm");
-
+    console.log("Attendance data:", attendanceData);
     try {
-      await axios.post("http://localhost:5000/api/upload-video", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      alert("Video uploaded successfully");
+      const response = await api.post("/save-attendance/", attendanceData);
+      console.log("Attendance submitted successfully:", response.data);
     } catch (error) {
-      console.error("Error uploading video:", error);
+      console.error("Error submitting attendance:", error);
     }
   };
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Record Attendance</h2>
-
-      <div className="flex flex-col items-center gap-4">
-        {/* Live video feed */}
-        <video ref={videoRef} autoPlay muted className="w-1/2 h-64 bg-black" />
-
-        {/* Preview of recorded video */}
-        <video ref={previewRef} controls className="w-1/2 h-64 bg-black" />
-
-        <div className="mt-4">
-          {isRecording ? (
-            <button
-              onClick={handleStopRecording}
-              className="bg-red-500 text-white p-2 rounded"
-            >
-              Stop Recording
-            </button>
-          ) : (
-            <button
-              onClick={handleStartRecording}
-              className="bg-blue-500 text-white p-2 rounded"
-            >
-              Start Recording
-            </button>
-          )}
-
-          {/* Send to backend */}
-          {recordedBlob && !isRecording && (
-            <button
-              onClick={handleSendToBackend}
-              className="ml-4 bg-green-500 text-white p-2 rounded"
-            >
-              Send to Backend
-            </button>
-          )}
-
-          {/* Switch Camera */}
-          {!isRecording && (
-            <button
-              onClick={handleSwitchCamera}
-              className="ml-4 bg-yellow-500 text-white p-2 rounded"
-            >
-              Switch Camera
-            </button>
-          )}
-        </div>
-      </div>
+      <video ref={videoRef} autoPlay></video>
+      <button onClick={startVideoStream}>Start Video</button>
+      <button onClick={stopVideoStream}>Stop Video</button>
+      <button onClick={submitAttendance}>Submit Attendance</button>
     </div>
   );
 };
 
-export default RecordAttendance;
+export default VideoStream;
