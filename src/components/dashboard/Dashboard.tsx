@@ -11,36 +11,31 @@ import Logo from "../Logo";
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("refresh");
-    navigate("/");
-  };
 
   localStorage.getItem("token");
 
-  useEffect(() => {
-    const getTeacherID = async () => {
-      try {
-        const response = await api.get("/get-teacher-id/");
-        console.log(response.data);
-        const { teacher_id } = response.data;
-        localStorage.setItem("teacher_id", teacher_id);
-      } catch (error) {
-        console.error("Error fetching teacher ID:", error);
-      }
-    };
+  // useEffect(() => {
+  //   const getTeacherID = async () => {
+  //     try {
+  //       const response = await api.get("/get-teacher-id/");
+  //       console.log(response.data);
+  //       const { teacher_id } = response.data;
+  //       localStorage.setItem("teacher_id", teacher_id);
+  //     } catch (error) {
+  //       console.error("Error fetching teacher ID:", error);
+  //     }
+  //   };
 
-    getTeacherID();
-  }, []);
+  //   getTeacherID();
+  // }, []);
 
   return (
-    <div className=" bg-[#eff0f3] h-screen">
+    <div className=" bg-[#eff0f3] ">
       <div className="bg-[#c9d7e0]">
         <Logo />
       </div>
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-6 ">
         <Routes>
           {/* This route only shows when on the exact /dashboard  */}
           <Route

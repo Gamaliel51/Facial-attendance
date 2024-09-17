@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/api";
 import axios from "axios";
+import Spinner from "../../components/spinner/Spinner";
 
 const FacialRegPage = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const FacialRegPage = () => {
   const [mediaRecorder, setMediaRecorder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
 
   const chunks = useRef<any>([]);
   const videoRef = useRef<any>(null);
@@ -38,29 +40,51 @@ const FacialRegPage = () => {
   }, [isrecording, mediaRecorder, recordedVideo, submitSuccess]);
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: 1280, height: 720 },
-      audio: true,
-    });
-    const options = { mimeType: "video/mp4" };
-    const newMediaRecorder = new MediaRecorder(stream, options);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720 },
+        audio: true,
+      });
+      const options = { mimeType: "video/mp4" };
+      const newMediaRecorder = new MediaRecorder(stream, options);
 
-    newMediaRecorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        chunks.current.push(event.data);
-      }
-    };
+      newMediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunks.current.push(event.data);
+        }
+      };
 
-    newMediaRecorder.onstop = () => {
-      const blob = new Blob(chunks.current, { type: "video/mp4" });
-      const videoUrl = URL.createObjectURL(blob);
-      setRecordedVideo(videoUrl);
-      chunks.current = [];
-    };
+      newMediaRecorder.onstop = () => {
+        const blob = new Blob(chunks.current, { type: "video/mp4" });
+        const videoUrl = URL.createObjectURL(blob);
+        setRecordedVideo(videoUrl);
+        chunks.current = [];
 
-    newMediaRecorder.start();
-    setMediaRecorder(newMediaRecorder);
-    setIsRecording(true);
+        // Calculate video duration
+        const videoElement = document.createElement("video");
+        videoElement.src = videoUrl;
+        videoElement.onloadedmetadata = () => {
+          const duration = videoElement.duration;
+          setVideoDuration(duration);
+          if (duration > 3) {
+            setError(
+              "Video is longer than 3 seconds. Please record a shorter video."
+            );
+            setLoading(false);
+            setRecordedVideo(null);
+          } else {
+            setError("");
+          }
+        };
+      };
+
+      newMediaRecorder.start();
+      setMediaRecorder(newMediaRecorder);
+      setIsRecording(true);
+      setError(""); // Clear any existing error messages
+    } catch (err) {
+      setError("Failed to access camera and microphone.");
+    }
   };
 
   const stopRecording = async () => {
@@ -81,33 +105,39 @@ const FacialRegPage = () => {
       setError("Please enter your name and matric number and record video");
       return;
     }
-    if (recordedVideo) {
-      setLoading(true);
-      const blob = await fetch(recordedVideo).then((res) => res.blob());
-      const file = new File([blob], `${name}.mp4`, { type: "video/mp4" });
-      const formData = new FormData();
-      formData.append("video", file);
-      formData.append("name", name);
-      formData.append("matric", matric);
+    if (videoDuration > 3) {
+      setError(
+        "Video is longer than 3 seconds. Please record a shorter video."
+      );
+      return;
+    }
+    try {
+      if (recordedVideo) {
+        setLoading(true);
+        const blob = await fetch(recordedVideo).then((res) => res.blob());
+        const file = new File([blob], `${name}.mp4`, { type: "video/mp4" });
+        const formData = new FormData();
+        formData.append("video", file);
+        formData.append("name", name);
+        formData.append("matric", matric);
 
-      const response = await api.post(`/register-studnt/${Link_id}/`, formData);
+        const response = await api.post(
+          `/register-studnt/${Link_id}/`,
+          formData
+        );
 
-      if (response.status === 200 || 201) {
-        setSubmitSuccess(true);
-        // setTimeout(() => alert("Facial Registration Success"), 3500);
+        if (response.status === 200 || 201) {
+          setSubmitSuccess(true);
+          // setTimeout(() => alert("Facial Registration Success"), 3500);
+        }
       }
+    } catch (err) {
+      setLoading(false);
+      setError("Submission failed. Please try again.");
     }
   };
 
-  if (loading && !submitSuccess) {
-    return (
-      <div className="min-h-screen w-full flex flex-col justify-center bg-blue-100">
-        <div className="min-h-[50vh] w-2/5 mx-auto flex flex-col items-center justify-center rounded-3xl shadow-2xl bg-white">
-          <p className="text-3xl font-semibold">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  // NOTE: finish confirmation part for submission
 
   if (loading && submitSuccess) {
     return (
@@ -120,8 +150,6 @@ const FacialRegPage = () => {
       </div>
     );
   }
-
-  // NOTE: finish confirmation part for submission
 
   return (
     <div className="min-h-screen w-full flex flex-col justify-center bg-blue-100">
@@ -147,9 +175,6 @@ const FacialRegPage = () => {
           />
         </div>
 
-        {/* <h1 className="w-full text-center mt-4 text-xl font-bold">
-          Register Student Face
-        </h1> */}
         <div className="h-fit w-fit mx-auto flex flex-row">
           <div className="h-[70vh] w-9/12 mx-20 my-10 flex flex-col justify-between bg-black">
             <video
@@ -178,8 +203,9 @@ const FacialRegPage = () => {
             <button
               className="h-20 w-20 font-bold rounded-full text-center bg-blue-100 hover:bg-blue-300"
               onClick={handleSubmit}
+              disabled={loading || !recordedVideo || videoDuration > 3}
             >
-              Submit
+            {loading ? <Spinner/> : "Submit"}
             </button>
           </div>
         </div>

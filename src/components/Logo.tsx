@@ -1,14 +1,22 @@
 import { FaRegCircleUser } from "react-icons/fa6";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Logo = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refresh");
+    navigate("/");
+  };
+
   return (
     <div className="container mx-auto flex items-center justify-between">
       <div className="flex justify-center items-center">
         <img
           src="src/assets/images/logo.webp"
           alt="logo"
-          className="w-20 h-20"
+          className="w-16 h-16"
         />
 
         <Link to="/dashboard">
@@ -20,10 +28,7 @@ const Logo = () => {
           Create Course
         </Link>
         <div className="flex items-center gap-2">
-          <Link to="" className="text-black font-semibold">
-            Admin
-          </Link>
-          <FaRegCircleUser />
+        <button onClick={handleLogout} className="">Logout</button>
         </div>
       </div>
     </div>

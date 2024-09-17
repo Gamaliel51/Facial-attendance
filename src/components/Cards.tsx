@@ -55,7 +55,7 @@ const Cards = () => {
         courses.map((course: any) => (
           <div key={course.id} className="bg-white p-4 shadow-md rounded">
             <img
-              src="https://via.placeholder.com/300"
+              src="src/assets/images/cardBg2.jpg"
               alt="course"
               className="w-full h-32 object-cover rounded"
             />
@@ -64,15 +64,16 @@ const Cards = () => {
                 {course.course_name}: {course.course_code}
               </h2>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 justify-between mt-4">
-              <button
-                onClick={() =>
-                  getCourseRegLink(course.course_code, course.course_name)
-                }
-                className="text-blue-600 underline"
-              >
-                Course Registration
-              </button>
+
+            <button
+              onClick={() =>
+                getCourseRegLink(course.course_code, course.course_name)
+              }
+              className="text-white p-2 rounded w-full bg-[#894a8b]"
+            >
+              Course Registration
+            </button>
+            <div className="flex justify-between mt-2">
               <Link
                 state={{
                   courseCode: course.course_code,

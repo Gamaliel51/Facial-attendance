@@ -17,6 +17,8 @@ const VideoStream: React.FC = () => {
   const [finalAttendance, setFinalAttendance] = useState<AttendanceResponse[]>(
     []
   );
+  const [message, setMessage] = useState<string>("Ready to start.");
+  const [messageType, setMessageType] = useState<string>("info"); // Message type for styling
 
   const location = useLocation();
 
@@ -31,8 +33,6 @@ const VideoStream: React.FC = () => {
   useEffect(() => {
     // Process responses whenever tempResponses changes
     processResponses();
-    console.log(tempResponses);
-    console.log(finalAttendance);
   }, [tempResponses]);
 
   // Start video streaming from the user's webcam
@@ -42,10 +42,15 @@ const VideoStream: React.FC = () => {
       .then((stream) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          setMessage("Video started, awaiting face detection...");
+          setMessageType("info");
           captureFrames();
         }
       })
-      .catch((err) => console.error("Error accessing webcam:", err));
+      .catch((err) => {
+        setMessage("Error accessing webcam.");
+        setMessageType("error");
+      });
   };
 
   const stopVideoStream = () => {
@@ -56,13 +61,14 @@ const VideoStream: React.FC = () => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null; // Set to null to prevent further use
-      console.log("WebSocket closed.");
+      setMessage("Video stopped, WebSocket closed.");
+      setMessageType("info");
     }
   };
 
   // Capture video frames and send to backend using WebSocket
   const captureFrames = () => {
-    const ws = new WebSocket("ws://4.tcp.eu.ngrok.io:17769/ws/video/ "); // WebSocket connection to backend
+    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:12635/ws/video/"); // WebSocket connection to backend
     wsRef.current = ws; // Store WebSocket reference
 
     const canvas = document.createElement("canvas");
@@ -72,6 +78,9 @@ const VideoStream: React.FC = () => {
     if (!video || !ctx) return;
 
     ws.onopen = () => {
+      setMessage("WebSocket connection opened, streaming frames...");
+      setMessageType("success");
+
       const sendFrame = () => {
         const currentTime = Date.now();
 
@@ -108,17 +117,22 @@ const VideoStream: React.FC = () => {
       console.log("Processed data from backend:", data);
       if (data.result !== "No face found in frame") {
         setTempResponses((prevResponses) => [...prevResponses, data]);
+        setMessage("Face detected in the frame.");
+        setMessageType("success");
       } else {
-        console.log("Skipping response due to failure: No face found in frame");
+        setMessage("No face found, please adjust position.");
+        setMessageType("warning");
       }
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      setMessage("WebSocket error, please reload the page.");
+      setMessageType("error");
     };
 
     ws.onclose = () => {
-      console.log("WebSocket connection closed");
+      setMessage("WebSocket connection closed.");
+      setMessageType("info");
     };
   };
   // Process tempResponses to find students with at least 3 records and add the latest one to finalAttendance
@@ -137,34 +151,39 @@ const VideoStream: React.FC = () => {
     const finalAttendanceData: AttendanceResponse[] = [];
     // For each student, if there are at least 3 records, add the latest one to finalAttendance
     Object.values(responseMap).forEach((responses) => {
-      if (responses.length >= 3) {
+      if (responses.length >= 2) {
         const latestResponse = responses.reduce((latest, current) =>
           new Date(current.time) > new Date(latest.time) ? current : latest
         );
-        finalAttendanceData.push(latestResponse);
-        // setTempResponses([]); // Clear tempResponses
-        // setFinalAttendance((prevAttendance) => {
-        //   // Check if the student is already in the finalAttendance
-        //   const existingIndex = prevAttendance.findIndex(
-        //     (entry) => entry.matric === latestResponse.matric
-        //   );
+        // Check if the student (based on matric) is already in finalAttendance
+        setFinalAttendance((prevAttendance) => {
+          const existingIndex = prevAttendance.findIndex(
+            (entry) => entry.matric === latestResponse.matric
+          );
 
-        //   if (existingIndex !== -1) {
-        //     // If the student already exists, replace with the latest entry
-        //     const updatedAttendance = [...prevAttendance];
-        //     updatedAttendance[existingIndex] = latestResponse;
-        //     return updatedAttendance;
-        //   } else {
-        //     // Otherwise, add the new entry
-        //     return [...prevAttendance, latestResponse];
-        //   }
-        // });
-        
+          if (existingIndex !== -1) {
+            // If the student already exists, update the entry
+            const updatedAttendance = [...prevAttendance];
+            updatedAttendance[existingIndex] = latestResponse;
+            return updatedAttendance;
+          } else {
+            // Otherwise, add the new entry
+            return [...prevAttendance, latestResponse];
+          }
+        });
+        finalAttendanceData.push(latestResponse);
       }
     });
 
-    setFinalAttendance(finalAttendanceData);
-    console.log("Final Attendance:", finalAttendanceData);
+    if (finalAttendanceData.length > 0) {
+      setMessage("Attendance successfully recorded!");
+      setMessageType("success");
+      console.log("Final attendance data:", finalAttendanceData);
+
+      // Clear tempResponses to start a new cycle
+      setTempResponses([]);
+    } else {
+    }
   };
 
   // Submit finalAttendance data to the backend
@@ -177,21 +196,67 @@ const VideoStream: React.FC = () => {
       teacher_id: teacherID,
     };
 
-    console.log("Attendance data:", attendanceData);
     try {
       const response = await api.post("/save-attendance/", attendanceData);
-      console.log("Attendance submitted successfully:", response.data);
+      setMessage("Attendance submitted successfully!");
+      setMessageType("success");
     } catch (error) {
-      console.error("Error submitting attendance:", error);
+      setMessage("Error submitting attendance.");
+      setMessageType("error");
     }
   };
 
   return (
     <div>
+      {/* instructions */}
+      <h1 className="text-2xl font-bold">Record Attendance</h1>
+      <p className="text-sm text-gray-500">
+        Click "Start Video" to begin recording attendance.
+        <br /> Ensure your face is visible in the video frame.
+      </p>
       <video ref={videoRef} autoPlay></video>
-      <button onClick={startVideoStream}>Start Video</button>
-      <button onClick={stopVideoStream}>Stop Video</button>
-      <button onClick={submitAttendance}>Submit Attendance</button>
+      {message && <div className={`message-box ${messageType}`}>{message}</div>}
+      <button
+        className="mt-5  mr-5 text-white p-2 rounded  bg-[#389130]"
+        onClick={startVideoStream}
+      >
+        Start Video
+      </button>
+      <button
+        className="mt-5 mr-5 text-white p-2 rounded  bg-[#d62e2e]"
+        onClick={stopVideoStream}
+      >
+        Stop Video
+      </button>
+      <button
+        className="mt-5 text-white p-2 rounded  bg-[#894a8b]"
+        onClick={submitAttendance}
+      >
+        Submit Attendance
+      </button>
+      <style>{`
+        .message-box {
+          margin-top: 15px;
+          padding: 10px;
+          border-radius: 5px;
+        }
+        .info {
+          background-color: #e0f7fa;
+          color: #00796b;
+        }
+        .success {
+          background-color: #d4edda;
+          color: #155724;
+        }
+        .warning {
+          background-color: #fff3cd;
+          color: #856404;
+        }
+        .error {
+          background-color: #f8d7da;
+          color: #721c24;
+        }
+      `}</style>
     </div>
   );
 };
