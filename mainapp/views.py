@@ -1,5 +1,8 @@
 from django.contrib.auth.models import User
-from mainapp.models import TeacherModel, CourseModel, Attendance, AttendanceRecord
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
+from io import BytesIO
+from mainapp.models import TeacherModel, CourseModel, Attendance, AttendanceRecord, StudentModel
 from rest_framework.decorators import permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
@@ -9,6 +12,7 @@ from mainapp.serializers import CourseSerializer
 
 from mainapp.facial_functions.facial_lib import execute_training
 
+import openpyxl
 import environ
 import uuid
 
@@ -128,8 +132,21 @@ class SubmitRegistration(APIView):
         video_file = request.FILES.get('video')
         matric = request.data.get('matric')
         name = request.data.get('name')
+        level = request.data.get("level")
+        department = request.data.get("department")
 
         student_id = f"{matric}-{name}"
+
+        try:
+            student = StudentModel.objects.get(matric=matric, course_id=course_id)
+
+            if student:
+                return Response({"error": "Student already registered for this course"}, status=400)
+        except StudentModel.DoesNotExist:
+            pass
+
+        new_student = StudentModel(matric=matric, name=name, level=level, department=department, course_id=course_id)
+        new_student.save()
 
         url_data = course_id.split('_')
 
@@ -165,12 +182,18 @@ class AttendanceAPIView(APIView):
             course_code = request.data.get('course_code')
             course_name = request.data.get('course_name')
 
+            print(f"HERE: {date}, {attendance_list}, {course_code}, {course_name}")
+
             teacher = TeacherModel.objects.get(username=str(request.user))
             teacher_id = teacher.teacher_id
+
+            print("HERE 2")
 
             # Validate that all required fields are present
             if not all([date, attendance_list, course_code, course_name, teacher_id]):
                 return Response({"error": "Missing fields in the request"}, status=400)
+
+            print("HERE 3")
 
             # Create an Attendance object
             attendance_obj = Attendance.objects.create(
@@ -180,11 +203,19 @@ class AttendanceAPIView(APIView):
                 teacher_id=teacher_id
             )
 
+            print("HERE 3")
+
             # Iterate through the attendance list and save individual records
             for record in attendance_list:
                 matric = record.get('matric')
                 name = record.get('name')
                 time_str = record.get('time')
+
+                course_id = f"{course_code}_{teacher_id}"
+                student = StudentModel.objects.get(matric=matric, course_id=course_id)
+
+                if student is None:
+                    return Response({"error": "No such student"}, status=400)
 
                 # Parse the time and create an AttendanceRecord object
                 time = time_str
@@ -194,6 +225,8 @@ class AttendanceAPIView(APIView):
                 attendance_record = AttendanceRecord.objects.create(
                     matric=matric,
                     name=name,
+                    level=student.level,
+                    department=student.department,
                     time=time
                 )
 
@@ -215,30 +248,42 @@ class AttendanceRecordsAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def post(self, request):
         # Get course_code and teacher_id from query parameters
-        course_code = request.query_params.get('course_code')
+        course_code = request.data.get('course_code')
+
+        print("HERE 1")
 
         teacher = TeacherModel.objects.get(username=str(request.user))
         teacher_id = teacher.teacher_id
 
+        print(f"HERE 2: {course_code}, {teacher_id}")
+
         # Validate that both course_code and teacher_id are provided
         if not course_code or not teacher_id:
+            print("HERE 2-2")
             return Response({"error": "course_code and teacher_id are required"}, status=400)
 
         try:
             # Fetch all attendance records for the specified course and teacher
             attendance_records = Attendance.objects.filter(course_code=course_code, teacher_id=teacher_id)
 
+            print("HERE 3")
+
             if not attendance_records.exists():
                 return Response({"error": "No attendance records found"}, status=404)
+
+            print("HERE 4")
 
             # Format the response in the required structure
             attendance_data = []
             for attendance in attendance_records:
                 # Create the attendance list for each attendance object
                 records = [
-                    {"matric": record.matric, "name": record.name, "time": record.time}
+                    {
+                        "matric": record.matric, "name": record.name, "level": record.level,
+                        "department": record.department, "time": record.time
+                    }
                     for record in attendance.records.all()
                 ]
 
@@ -249,6 +294,8 @@ class AttendanceRecordsAPIView(APIView):
                     "course_name": attendance.course_name,
                     "teacher_id": attendance.teacher_id
                 })
+
+            print("HERE 5")
 
             return Response(attendance_data, status=200)
 
@@ -267,6 +314,64 @@ class GetTeacherID(APIView):
         teacher_id = teacher.teacher_id
 
         return Response({'teacher_id': teacher_id}, status=200)
+
+
+class AttendanceExcelAPIView(APIView):
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+
+            print(request.data)
+            # Extract data from request
+            date = request.data.get('date')
+            attendance_list = request.data.get('attendance')
+            course_code = request.data.get('course_code')
+            course_name = request.data.get('course_name')
+
+            teacher = TeacherModel.objects.get(username=str(request.user))
+            teacher_id = teacher.teacher_id
+
+            print(f"HERE: {date}, {attendance_list}, {course_code}, {course_name}")
+
+            # Validate input
+            if not all([date, attendance_list, course_code, course_name, teacher_id]):
+                return Response({"error": "Missing fields in the request"}, status=400)
+
+            # Create an Excel workbook and add a worksheet
+            workbook = openpyxl.Workbook()
+            sheet = workbook.active
+            sheet.title = f"{course_code} Attendance"
+
+            # Create headers for the sheet
+            headers = ['Matric Number', 'Name', 'Level', 'Department', 'Time', 'Date']
+            sheet.append(headers)
+
+            # Add attendance data to the sheet
+            for record in attendance_list:
+                row = [record['matric'], record['name'], record['level'], record['department'], record['time'], date]
+                sheet.append(row)
+
+            print("HERE 1")
+
+            # Create an in-memory bytes buffer to save the Excel file
+            output = BytesIO()
+            workbook.save(output)
+            output.seek(0)
+
+            print("HERE 2")
+
+            # Prepare the response with the file
+            response = HttpResponse(output, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            response['Content-Disposition'] = f'attachment; filename={course_code}_attendance_{date}.xlsx'
+
+            return response
+
+        except Exception as e:
+            print(str(e))
+            return Response({"error": str(e)}, status=500)
 
 
 

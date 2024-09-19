@@ -108,7 +108,7 @@ def train_facial_model(folder_name, model_file='facial_model.pkl'):
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Construct the full path to 'mainapp/facial_functions/model_file'
-    model_file = os.path.join(os.getcwd(), 'facial_functions', model_file)
+    model_file = os.path.join(os.getcwd(), 'mainapp', 'facial_functions', model_file)
 
     # Load or create the model
     if os.path.exists(model_file):
