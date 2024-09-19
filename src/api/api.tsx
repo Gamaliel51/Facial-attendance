@@ -1,11 +1,10 @@
 // @ts-ignore
 import axios from "axios";
-// import Cookies from 'js-cookie';
 
 
 
 const api = axios.create({
-  baseURL: "http://0.tcp.eu.ngrok.io:15213",
+  baseURL: "http://0.tcp.eu.ngrok.io:15642",
 });
 // console.log(localStorage.getItem("token"));
 api.interceptors.request.use((config) => {

@@ -1,3 +1,4 @@
+// @ts-ignore
 import React, { useState } from "react";
 import axios from "../../api/axios";
 import { Link, useNavigate } from "react-router-dom";
@@ -104,6 +105,7 @@ const Signup = () => {
         >
           {loading ? <Spinner /> : "Sign Up"}
         </button>
+        {errors && <p className="text-red-500 text-center mt-2">{errors}</p>}
         <div>
           <p className="mt-4 text-center">
             Already have an account?{" "}

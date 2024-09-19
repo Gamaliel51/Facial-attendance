@@ -1,11 +1,11 @@
+// @ts-ignore
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import api from "../api/api";
 import Spinner from "./spinner/Spinner";
 
 const Cards = () => {
   const [courses, setCourses] = useState<any[]>([]);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCourses = async () => {

@@ -1,4 +1,4 @@
-import { FaRegCircleUser } from "react-icons/fa6";
+// @ts-ignore
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { HiOutlineMenuAlt4, HiX } from "react-icons/hi"; // Icons for menu and close
@@ -74,4 +74,3 @@ const Logo = () => {
 };
 
 export default Logo;
-// src\assets\images\logo.webp

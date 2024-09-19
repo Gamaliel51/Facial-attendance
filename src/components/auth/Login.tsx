@@ -1,3 +1,4 @@
+// @ts-ignore
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SIGNUP } from "../../navigation/routes";
@@ -27,7 +28,9 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  // const [token, setToken] = useState<string | null>(
+  //   localStorage.getItem("token")
+  // );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,11 +43,11 @@ const Login = () => {
       });
       // console.log(response.data);
       const token = response.data.access;
-      const {refresh} = response.data;
+      const { refresh } = response.data;
       localStorage.setItem("token", token);
       localStorage.setItem("refresh", refresh);
-      setToken(token);
-      
+      // setToken(token);
+
       if (response.status === 200 || 201) {
         navigate("/dashboard");
       } else {
@@ -85,6 +88,7 @@ const Login = () => {
         >
           {loading ? <Spinner /> : "Log In"}
         </button>
+        {error && <p className="text-red-500 text-center mt-2">{error}</p>}
         <div>
           <p className="mt-4 text-center">
             Don't have an account?{" "}

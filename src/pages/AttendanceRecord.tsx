@@ -1,5 +1,5 @@
-import axios from "axios";
-import React, { useEffect, useState } from "react";
+// @ts-ignore
+import { useEffect, useState } from "react";
 import api from "../api/api";
 import { useLocation } from "react-router-dom";
 import Spinner from "../components/spinner/Spinner";

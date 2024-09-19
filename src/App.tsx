@@ -1,14 +1,7 @@
+// @ts-ignore
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-
 import "./App.css";
-import {
-  ATTENDANCEMANAGEMENT,
-  CREATECOURSE,
-  DASHBOARD,
-  LOGIN,
-  SIGNUP,
-  VIDEORECORDING,
-} from "./navigation/routes";
+import { DASHBOARD, SIGNUP } from "./navigation/routes";
 import Login from "./components/auth/Login";
 import Signup from "./components/auth/Signup";
 import Dashboard from "./components/dashboard/Dashboard";
@@ -24,7 +17,10 @@ function App() {
         {/* Dashboard with nested routes */}
         <Route path={DASHBOARD} element={<Dashboard />} />
 
-        <Route path="/register-student/:link_id" element={<RegisterStudent />} />
+        <Route
+          path="/register-student/:link_id"
+          element={<RegisterStudent />}
+        />
         {/* Redirect to login if no matching route */}
         <Route path="*" element={<Login />} />
       </Routes>

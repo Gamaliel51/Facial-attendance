@@ -1,3 +1,4 @@
+// @ts-ignore
 import api from "../api/api";
 import React, { useState } from "react";
 import Spinner from "../components/spinner/Spinner";

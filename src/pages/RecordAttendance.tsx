@@ -1,3 +1,4 @@
+// @ts-ignore
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import api from "../api/api";
@@ -47,7 +48,7 @@ const VideoStream: React.FC = () => {
           captureFrames();
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setMessage("Error accessing webcam.");
         setMessageType("error");
       });
@@ -68,7 +69,7 @@ const VideoStream: React.FC = () => {
 
   // Capture video frames and send to backend using WebSocket
   const captureFrames = () => {
-    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:15213/ws/video/"); // WebSocket connection to backend
+    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:15642/ws/video/"); // WebSocket connection to backend
     wsRef.current = ws; // Store WebSocket reference
 
     const canvas = document.createElement("canvas");
@@ -117,7 +118,7 @@ const VideoStream: React.FC = () => {
       // console.log("Processed data from backend:", data);
       if (data.result !== "No face found in frame") {
         setTempResponses((prevResponses) => [...prevResponses, data]);
-        setMessage("Face detected in the frame.");
+        setMessage("Face detected in the frame. Hold on...");
         setMessageType("success");
       } else {
         setMessage("No face found, please adjust position.");
@@ -125,7 +126,7 @@ const VideoStream: React.FC = () => {
       }
     };
 
-    ws.onerror = (error) => {
+    ws.onerror = () => {
       setMessage("WebSocket error, please reload the page.");
       setMessageType("error");
     };
@@ -151,7 +152,7 @@ const VideoStream: React.FC = () => {
     const newFinalAttendance: AttendanceResponse[] = [];
     // For each student, if there are at least 3 records, add the latest one to finalAttendance
     Object.values(responseMap).forEach((responses) => {
-      if (responses.length >= 3) {
+      if (responses.length >= 2) {
         const latestResponse = responses.reduce((latest, current) =>
           new Date(current.time) > new Date(latest.time) ? current : latest
         );
@@ -199,7 +200,7 @@ const VideoStream: React.FC = () => {
     };
 
     try {
-      const response = await api.post("/save-attendance/", attendanceData);
+      await api.post("/save-attendance/", attendanceData);
       setMessage("Attendance submitted successfully!");
       setMessageType("success");
     } catch (error) {
