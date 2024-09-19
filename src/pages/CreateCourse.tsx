@@ -12,16 +12,18 @@ const CreateCourse = () => {
 
   const [courseData, setCourseData] = useState<Courses>({
     course_name: "",
-    course_code: "".replace(/\s+/g, ""),
+    course_code: "".replace(/\s+/g, "").toUpperCase(),
   });
+
+  // console.log(courseData);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    console.log(courseData);
+    // console.log(courseData);
     try {
       const response = await api.post("/addcourse/", courseData);
-      console.log(response.data);
+      // console.log(response.data);
       if (response.status === 200 || 201) {
         alert("Course added successfully");
       }
@@ -35,7 +37,7 @@ const CreateCourse = () => {
     const { name, value } = e.target;
     setCourseData((prevData) => ({
       ...prevData,
-      [name]: value,
+      [name]: value.toUpperCase(),
     }));
   };
 

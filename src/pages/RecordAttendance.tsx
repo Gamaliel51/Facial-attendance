@@ -28,7 +28,7 @@ const VideoStream: React.FC = () => {
   const { courseCode, teacherID, courseName } = location.state || {};
   const course_id = `${courseCode}_${teacherID}`;
   // .replace(/\s+/g, "")
-  console.log(course_id);
+  // console.log(course_id);
 
   useEffect(() => {
     // Process responses whenever tempResponses changes
@@ -68,7 +68,7 @@ const VideoStream: React.FC = () => {
 
   // Capture video frames and send to backend using WebSocket
   const captureFrames = () => {
-    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:12635/ws/video/"); // WebSocket connection to backend
+    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:15213/ws/video/"); // WebSocket connection to backend
     wsRef.current = ws; // Store WebSocket reference
 
     const canvas = document.createElement("canvas");
@@ -114,7 +114,7 @@ const VideoStream: React.FC = () => {
     // Handle results from backend
     ws.onmessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      console.log("Processed data from backend:", data);
+      // console.log("Processed data from backend:", data);
       if (data.result !== "No face found in frame") {
         setTempResponses((prevResponses) => [...prevResponses, data]);
         setMessage("Face detected in the frame.");
@@ -148,39 +148,41 @@ const VideoStream: React.FC = () => {
       responseMap[key].push(response);
     });
 
-    const finalAttendanceData: AttendanceResponse[] = [];
+    const newFinalAttendance: AttendanceResponse[] = [];
     // For each student, if there are at least 3 records, add the latest one to finalAttendance
     Object.values(responseMap).forEach((responses) => {
-      if (responses.length >= 2) {
+      if (responses.length >= 3) {
         const latestResponse = responses.reduce((latest, current) =>
           new Date(current.time) > new Date(latest.time) ? current : latest
         );
-        // Check if the student (based on matric) is already in finalAttendance
-        setFinalAttendance((prevAttendance) => {
-          const existingIndex = prevAttendance.findIndex(
-            (entry) => entry.matric === latestResponse.matric
-          );
-
-          if (existingIndex !== -1) {
-            // If the student already exists, update the entry
-            const updatedAttendance = [...prevAttendance];
-            updatedAttendance[existingIndex] = latestResponse;
-            return updatedAttendance;
-          } else {
-            // Otherwise, add the new entry
-            return [...prevAttendance, latestResponse];
-          }
-        });
-        finalAttendanceData.push(latestResponse);
+        newFinalAttendance.push(latestResponse);
       }
     });
+    if (newFinalAttendance.length > 0) {
+      setFinalAttendance((prevAttendance) => {
+        // Merge new final attendance data with previous data
+        const updatedAttendance = [...prevAttendance];
 
-    if (finalAttendanceData.length > 0) {
+        // Only update state once with the new array
+        newFinalAttendance.forEach((entry) => {
+          const existingIndex = updatedAttendance.findIndex(
+            (prev) => prev.matric === entry.matric
+          );
+          if (existingIndex !== -1) {
+            // If the student already exists, update the entry
+            updatedAttendance[existingIndex] = entry;
+          } else {
+            // Otherwise, add the new entry
+            updatedAttendance.push(entry);
+          }
+        });
+
+        // console.log("Final attendance updated:", updatedAttendance);
+        return updatedAttendance;
+      });
       setMessage("Attendance successfully recorded!");
       setMessageType("success");
-      console.log("Final attendance data:", finalAttendanceData);
-
-      // Clear tempResponses to start a new cycle
+      // Reset tempResponses to start fresh after a successful match
       setTempResponses([]);
     } else {
     }

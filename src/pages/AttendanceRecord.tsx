@@ -8,6 +8,8 @@ interface AttendanceRecord {
   matric: string;
   name: string;
   time: string;
+  department: string;
+  level: string;
 }
 
 interface AttendanceResponse {
@@ -41,7 +43,7 @@ const AttendanceRecord = () => {
       } else {
         setAttendanceRecords([]);
       }
-      console.log("Attendance records:", JSON.stringify(response.data));
+      // console.log("Attendance records:", JSON.stringify(response.data));
     } catch (error) {
       setError("Error fetching attendance records.");
       console.error("Error fetching attendance records:", error);
@@ -109,6 +111,8 @@ const AttendanceRecord = () => {
               <th className="border px-4 py-2">S/N</th>
               <th className="border px-4 py-2">Matric</th>
               <th className="border px-4 py-2">Name</th>
+              <th className="border px-4 py-2">Level</th>
+              <th className="border px-4 py-2">Department</th>
               <th className="border px-4 py-2">Time</th>
               <th className="border px-4 py-2">Date</th>
             </tr>
@@ -122,6 +126,8 @@ const AttendanceRecord = () => {
                   <td className="border px-4 py-2">{globalCounter}</td>
                   <td className="border px-4 py-2">{item.matric}</td>
                   <td className="border px-4 py-2">{item.name}</td>
+                  <td className="border px-4 py-2">{item.level}</td>
+                  <td className="border px-4 py-2">{item.department}</td>
                   <td className="border px-4 py-2">{item.time}</td>
                   <td className="border px-4 py-2">{record.date}</td>
                 </tr>

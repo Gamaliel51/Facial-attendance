@@ -41,7 +41,7 @@ const Signup = () => {
     setLoading(true);
     try {
       const response = await axios.post("/signup/", teacherSignupForm);
-      console.log(response.data);
+      // console.log(response.data);
       if (response.status === 200 || 201) {
         navigate("/"); // Redirect to login page or dashboard after signup
       } else {

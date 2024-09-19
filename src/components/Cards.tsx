@@ -11,7 +11,7 @@ const Cards = () => {
     const fetchCourses = async () => {
       try {
         const response = await api.get("/get-teacher-courses/");
-        console.log(response.data.data);
+        // console.log(response.data.data);
         // localStorage.
         setCourses(response.data.data);
         // const {teacher_id} = response.data.data
@@ -34,7 +34,7 @@ const Cards = () => {
       });
       const { link_id } = response.data;
 
-      console.log("Registration link ID:", link_id);
+      // console.log("Registration link ID:", link_id);
       // navigate(`/register-student/${link_id}`);
       alert(
         `Course registration link: ${window.location.origin}/register-student/${link_id}`

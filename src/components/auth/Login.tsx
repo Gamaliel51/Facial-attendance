@@ -38,7 +38,7 @@ const Login = () => {
         username,
         password,
       });
-      console.log(response.data);
+      // console.log(response.data);
       const token = response.data.access;
       const {refresh} = response.data;
       localStorage.setItem("token", token);
