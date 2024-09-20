@@ -4,7 +4,7 @@ import axios from "axios";
 
 
 const api = axios.create({
-  baseURL: "http://0.tcp.eu.ngrok.io:15642",
+  baseURL: "https://attendify-gacdcsgchfc4ama9.canadacentral-01.azurewebsites.net",
 });
 // console.log(localStorage.getItem("token"));
 api.interceptors.request.use((config) => {
