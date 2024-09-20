@@ -1,2 +1,3 @@
 .env
 backend/.env
+mainapp/facial_functions/res10_300x300_ssd_iter_140000.caffemodel
