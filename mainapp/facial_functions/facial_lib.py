@@ -37,7 +37,7 @@ def split_video_to_frames(video_path, folder_name):
         os.makedirs(train_dir)
 
     # Path to the specific folder for this person inside 'train'
-    face_folder_path = os.path.join(train_dir, folder_name)
+    face_folder_path = os.path.join(os.getcwd(), 'mainapp', 'facial_functions', train_dir, folder_name)
 
     # Check if the folder already exists (i.e., this face has been trained)
     if os.path.exists(face_folder_path):
@@ -118,7 +118,7 @@ def train_facial_model(folder_name, model_file='facial_model.pkl'):
         face_embeddings = {}  # New dictionary to hold embeddings
 
     # Path to the folder inside 'train' directory
-    folder_path = os.path.join('train', folder_name)
+    folder_path = os.path.join(os.getcwd(), 'mainapp', 'facial_functions', 'train', folder_name)
 
     # Go through all the images in the folder
     embeddings = []

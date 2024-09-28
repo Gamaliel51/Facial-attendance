@@ -33,23 +33,10 @@ class VideoConsumer(AsyncWebsocketConsumer):
             return
 
         # Process the frame (example: convert to grayscale)
-        processed_image = self.process_frame(image, course_id)
-
-        if processed_image is None:
-            await self.send(json.dumps({'result': 'No face found in frame'}))
-            return
-
-        matric = processed_image.split('-')[0]
-        name = processed_image.split('-')[1]
-
-        # Get the current time
-        current_time = datetime.now().time()
-
-        # Convert the time to a string in the format 'HH:MM'
-        time_str = current_time.strftime('%H:%M')
+        processed_array = self.process_frame(image, course_id)
 
         # Send the processed frame back to the frontend (optional)
-        await self.send(json.dumps({'result': 'Frame processed successfully', 'matric': matric, 'name': name, 'time': time_str}))
+        await self.send(json.dumps({'result': processed_array}))
 
     def decode_base64_image(self, frame_data):
         # Decode the base64 image
@@ -67,6 +54,8 @@ class VideoConsumer(AsyncWebsocketConsumer):
 
         frame = image
         facenet = FaceNet()
+
+        detected_faces = []
 
         # Get the directory of the current file and go back one folder
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -105,6 +94,18 @@ class VideoConsumer(AsyncWebsocketConsumer):
                     best_match_name = name
 
             if min_distance < 1.0:
-                return best_match_name
 
-        return None
+                matric = best_match_name.split('-')[0]
+                name = best_match_name.split('-')[1]
+
+                # Get the current time
+                current_time = datetime.now().time()
+
+                # Convert the time to a string in the format 'HH:MM'
+                time_str = current_time.strftime('%H:%M')
+
+                face_info = {'result': 'Frame processed successfully', 'matric': matric, 'name': name, 'time': time_str}
+
+                detected_faces.append(face_info)
+
+        return detected_faces

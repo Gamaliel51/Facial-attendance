@@ -1,3 +1,5 @@
+import os
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
@@ -135,7 +137,7 @@ class SubmitRegistration(APIView):
         level = request.data.get("level")
         department = request.data.get("department")
 
-        student_id = f"{matric}-{name}"
+        student_id = f"{matric}-{name}-{course_id}"
 
         try:
             student = StudentModel.objects.get(matric=matric, course_id=course_id)
@@ -162,6 +164,7 @@ class SubmitRegistration(APIView):
 
         success, response = execute_training(student_id=student_id, video_dir=stored_file_name, model_name=course_id)
 
+        os.remove(stored_file_name)
         if success:
             return Response({'message': 'success'}, status=200)
 
