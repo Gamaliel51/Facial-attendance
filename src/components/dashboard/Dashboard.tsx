@@ -8,18 +8,17 @@ import Logo from "../Logo";
 
 const Dashboard = () => {
   return (
-    <div className=" bg-[#eff0f3] ">
-      <div className="bg-[#c9d7e0]">
+    <div className="bg-gray-100 min-h-screen">
+      <div className="bg-[#c9d7e0] py-4">
         <Logo />
       </div>
 
-      <div className="flex-1 overflow-auto p-6 ">
+      <div className="p-6 lg:p-12">
         <Routes>
-          {/* This route only shows when on the exact /dashboard  */}
           <Route
             path="/"
             element={
-              <div className="bg-white p-6">
+              <div className="bg-white shadow-lg p-8 rounded-lg">
                 <Cards />
               </div>
             }

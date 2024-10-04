@@ -14,7 +14,7 @@ const Logo = () => {
   };
 
   return (
-    <div className="container mx-auto flex items-center justify-between px-4 py-4">
+    <div className="container mx-auto flex items-center justify-between px-4">
       <div className="flex items-center">
         <img
           src="src/assets/images/logo.webp"

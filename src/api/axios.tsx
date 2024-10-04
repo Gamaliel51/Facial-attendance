@@ -2,7 +2,7 @@
 import axios from "axios";
 
 export const config = {
-  baseURL: "https://attendify-gacdcsgchfc4ama9.canadacentral-01.azurewebsites.net",
+  baseURL: "http://0.tcp.eu.ngrok.io:11545",
 };
 
 const client = axios.create({

@@ -39,7 +39,11 @@ const VideoStream: React.FC = () => {
   // Start video streaming from the user's webcam
   const startVideoStream = () => {
     navigator.mediaDevices
-      .getUserMedia({ video: true })
+      .getUserMedia({
+        video: {
+          facingMode: "environment",
+        },
+      })
       .then((stream) => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -65,13 +69,12 @@ const VideoStream: React.FC = () => {
       setMessage("Video stopped, WebSocket closed.");
       setMessageType("info");
     }
+    submitAttendance();
   };
 
   // Capture video frames and send to backend using WebSocket
   const captureFrames = () => {
-    const ws = new WebSocket(
-      "wss://attendify-gacdcsgchfc4ama9.canadacentral-01.azurewebsites.net/ws/video/"
-    ); // WebSocket connection to backend
+    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:11545/ws/video/"); // WebSocket connection to backend
     wsRef.current = ws; // Store WebSocket reference
 
     const canvas = document.createElement("canvas");
@@ -117,10 +120,23 @@ const VideoStream: React.FC = () => {
     // Handle results from backend
     ws.onmessage = (event: MessageEvent) => {
       const data = JSON.parse(event.data);
-      // console.log("Processed data from backend:", data);
-      if (data.result !== "No face found in frame") {
-        setTempResponses((prevResponses) => [...prevResponses, data]);
-        setMessage("Face detected in the frame. Hold on...");
+      console.log("Processed data from backend:", data);
+      if (data.result.length > 0) {
+        const newResponses: AttendanceResponse[] = data.result.map(
+          (item: any) => ({
+            matric: item.matric,
+            name: item.name,
+            time: item.time,
+            // time: new Date().toISOString(), // Using current time for demonstration
+            result: item.result,
+          })
+        );
+
+        setTempResponses((prevResponses) => [
+          ...prevResponses,
+          ...newResponses,
+        ]);
+        setMessage("Face detected in the frame.");
         setMessageType("success");
       } else {
         setMessage("No face found, please adjust position.");
@@ -140,54 +156,35 @@ const VideoStream: React.FC = () => {
   };
   // Process tempResponses to find students with at least 3 records and add the latest one to finalAttendance
   const processResponses = () => {
-    const responseMap: Record<string, AttendanceResponse[]> = {};
+    const responseMap: Record<string, AttendanceResponse> = {};
 
-    // Group responses by matric and name
+    // Group responses by matric to avoid duplicates
     tempResponses.forEach((response) => {
-      const key = `${response.matric}`;
-      if (!responseMap[key]) {
-        responseMap[key] = [];
-      }
-      responseMap[key].push(response);
+      responseMap[response.matric] = response; // Ensure no duplicates by matric
     });
 
-    const newFinalAttendance: AttendanceResponse[] = [];
-    // For each student, if there are at least 3 records, add the latest one to finalAttendance
-    Object.values(responseMap).forEach((responses) => {
-      if (responses.length >= 2) {
-        const latestResponse = responses.reduce((latest, current) =>
-          new Date(current.time) > new Date(latest.time) ? current : latest
-        );
-        newFinalAttendance.push(latestResponse);
-      }
-    });
-    if (newFinalAttendance.length > 0) {
+    const uniqueResponses = Object.values(responseMap);
+
+    if (uniqueResponses.length > 0) {
       setFinalAttendance((prevAttendance) => {
-        // Merge new final attendance data with previous data
         const updatedAttendance = [...prevAttendance];
 
-        // Only update state once with the new array
-        newFinalAttendance.forEach((entry) => {
+        uniqueResponses.forEach((entry) => {
           const existingIndex = updatedAttendance.findIndex(
             (prev) => prev.matric === entry.matric
           );
-          if (existingIndex !== -1) {
-            // If the student already exists, update the entry
-            updatedAttendance[existingIndex] = entry;
-          } else {
-            // Otherwise, add the new entry
-            updatedAttendance.push(entry);
+          if (existingIndex === -1) {
+            updatedAttendance.push(entry); // Add unique entry
           }
         });
 
-        // console.log("Final attendance updated:", updatedAttendance);
         return updatedAttendance;
       });
+
       setMessage("Attendance successfully recorded!");
       setMessageType("success");
-      // Reset tempResponses to start fresh after a successful match
-      setTempResponses([]);
-    } else {
+      // setTempResponses([]);
+      console.log("Final attendance:", finalAttendance);
     }
   };
 
@@ -205,6 +202,7 @@ const VideoStream: React.FC = () => {
       await api.post("/save-attendance/", attendanceData);
       setMessage("Attendance submitted successfully!");
       setMessageType("success");
+      console.log("Attendance data:", attendanceData);
     } catch (error) {
       setMessage("Error submitting attendance.");
       setMessageType("error");
@@ -212,58 +210,81 @@ const VideoStream: React.FC = () => {
   };
 
   return (
-    <div>
-      {/* instructions */}
-      <h1 className="text-2xl font-bold">Record Attendance</h1>
-      <p className="text-sm text-gray-500">
+    <div className="max-w-4xl mx-auto p-4">
+      {/* Instructions */}
+      <h1 className="text-3xl font-bold text-center mb-4">Record Attendance</h1>
+      <p className="text-md text-gray-600 text-center mb-6">
         Click "Start Video" to begin recording attendance.
         <br /> Ensure your face is visible in the video frame.
       </p>
-      <video ref={videoRef} autoPlay></video>
-      {message && <div className={`message-box ${messageType}`}>{message}</div>}
-      <button
-        className="mt-5  mr-5 text-white p-2 rounded  bg-[#389130]"
-        onClick={startVideoStream}
-      >
-        Start Video
-      </button>
-      <button
-        className="mt-5 mr-5 text-white p-2 rounded  bg-[#d62e2e]"
-        onClick={stopVideoStream}
-      >
-        Stop Video
-      </button>
-      <button
-        className="mt-5 text-white p-2 rounded  bg-[#894a8b]"
-        onClick={submitAttendance}
-      >
-        Submit Attendance
-      </button>
-      <style>{`
-        .message-box {
-          margin-top: 15px;
-          padding: 10px;
-          border-radius: 5px;
-        }
-        .info {
-          background-color: #e0f7fa;
-          color: #00796b;
-        }
-        .success {
-          background-color: #d4edda;
-          color: #155724;
-        }
-        .warning {
-          background-color: #fff3cd;
-          color: #856404;
-        }
-        .error {
-          background-color: #f8d7da;
-          color: #721c24;
-        }
-      `}</style>
+  
+      <div className="flex justify-center mb-4">
+        <video
+          ref={videoRef}
+          autoPlay
+          className="w-full md:w-3/4 lg:w-2/3 border rounded-lg shadow-lg"
+        ></video>
+      </div>
+  
+      {message && (
+        <div className={`message-box p-4 rounded mb-4 ${messageType}`}>
+          {message}
+        </div>
+      )}
+  
+      <div className="flex justify-center space-x-4 mt-5">
+        <button
+          className="text-white py-2 px-4 rounded bg-[#389130] hover:bg-[#2f6c23] transition duration-300"
+          onClick={startVideoStream}
+        >
+          Start Video
+        </button>
+        <button
+          className="text-white py-2 px-4 rounded bg-[#d62e2e] hover:bg-[#c61c1c] transition duration-300"
+          onClick={stopVideoStream}
+        >
+          Stop Video
+        </button>
+      </div>
+  
+      <h2 className="mt-6 text-2xl font-semibold text-center">Detected Faces:</h2>
+      <ul className="mt-4 space-y-2">
+        {finalAttendance.map((attendance, index) => (
+          <li
+            key={index}
+            className="text-md text-gray-800 bg-gray-100 p-2 rounded shadow"
+          >
+            {attendance.name} (Matric: {attendance.matric})
+          </li>
+        ))}
+      </ul>
+  
+      <style>
+        {`
+          .message-box {
+            margin-top: 15px;
+          }
+          .info {
+            background-color: #e0f7fa;
+            color: #00796b;
+          }
+          .success {
+            background-color: #d4edda;
+            color: #155724;
+          }
+          .warning {
+            background-color: #fff3cd;
+            color: #856404;
+          }
+          .error {
+            background-color: #f8d7da;
+            color: #721c24;
+          }
+        `}
+      </style>
     </div>
   );
+  
 };
 
 export default VideoStream;

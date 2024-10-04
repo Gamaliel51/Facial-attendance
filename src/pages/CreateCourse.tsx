@@ -38,7 +38,7 @@ const CreateCourse = () => {
     const { name, value } = e.target;
     setCourseData((prevData) => ({
       ...prevData,
-      [name]: value.toUpperCase(),
+      [name]: value
     }));
   };
 

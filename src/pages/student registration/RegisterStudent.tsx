@@ -15,6 +15,7 @@ const FacialRegPage = () => {
   const [loading, setLoading] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [frontCamera, setFrontCamera] = useState(true); // For camera flip
 
   const chunks = useRef<any>([]);
   const videoRef = useRef<any>(null);
@@ -40,10 +41,18 @@ const FacialRegPage = () => {
 
   const startRecording = async () => {
     try {
+      // Stop any previous streams
+      if (mediaRecorder) {
+        mediaRecorder.stream
+          .getTracks()
+          .forEach((track: MediaStreamTrack) => track.stop());
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720 },
-        audio: true,
+        video: { facingMode: frontCamera ? "user" : "environment" },
+        // audio: true,
       });
+
       const options = { mimeType: "video/mp4" };
       const newMediaRecorder = new MediaRecorder(stream, options);
 
@@ -82,7 +91,7 @@ const FacialRegPage = () => {
       setIsRecording(true);
       setError(""); // Clear any existing error messages
     } catch (err) {
-      setError("Failed to access camera and microphone.");
+      setError("Failed to access camera.");
     }
   };
 
@@ -98,6 +107,28 @@ const FacialRegPage = () => {
       setIsRecording(false);
     }
   };
+
+  const handleFlipCamera = async () => {
+    if (isrecording) {
+      // Stop the current recording before flipping
+      stopRecording();
+    }
+
+    // Toggle the camera
+    setFrontCamera(!frontCamera);
+
+    // Restart recording with the new camera
+    setTimeout(() => {
+      startRecording();
+    }, 500); // Adding a slight delay to allow time for the stream to reset
+  };
+
+  // const handleFlipCamera = async () => {
+  //   if (mediaRecorder && isrecording) {
+  //     stopRecording();
+  //   }
+
+  // };
 
   const handleSubmit = async () => {
     if (name === "" || matric === "" || !recordedVideo) {
@@ -126,7 +157,9 @@ const FacialRegPage = () => {
           `/register-studnt/${Link_id}/`,
           formData
         );
-
+        setTimeout(() => {
+          setError("Still sending data, please wait...");
+        }, 15000);
         if (response.status === 200 || 201) {
           setSubmitSuccess(true);
         }
@@ -150,108 +183,158 @@ const FacialRegPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md space-y-6">
-        <h1 className="text-3xl font-bold text-gray-700 text-center">
-          Student Registration
-        </h1>
-        <h1 className="text-xl font-medium text-gray-700 underline">
-          {course_code}
+    <div className="min-h-screen flex justify-center items-center bg-gray-100">
+      <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-6 space-y-8">
+        <h1 className="text-4xl font-semibold text-gray-800 text-center">
+          Student Facial Registration
         </h1>
 
-        <div className="space-y-4">
+        <h2 className="text-2xl text-gray-600 font-medium text-center">
+          {course_code}
+        </h2>
+
+        <form className="space-y-6">
+          {/* Name Input */}
           <div className="flex flex-col">
-            <label className="text-gray-700">Your Name</label>
+            <label className="text-sm font-medium text-gray-600">Name</label>
             <input
-              className="mt-1 block w-full px-4 py-2 bg-gray-100 border rounded-md"
+              type="text"
+              className="mt-1 p-2 border rounded-lg bg-gray-50"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter Your Name"
-              type="text"
+              placeholder="Enter your name"
             />
           </div>
+
+          {/* Matric Number Input */}
           <div className="flex flex-col">
-            <label className="text-gray-700">Matric Number</label>
+            <label className="text-sm font-medium text-gray-600">
+              Matric Number
+            </label>
             <input
-              className="mt-1 block w-full px-4 py-2 bg-gray-100 border rounded-md"
+              type="text"
+              className="mt-1 p-2 border rounded-lg bg-gray-50"
               value={matric}
               onChange={(e) => setMatric(e.target.value)}
-              placeholder="Enter Your Matric Number"
-              type="text"
+              placeholder="Enter your matric number"
             />
           </div>
+
+          {/* Department Input */}
           <div className="flex flex-col">
-            <label className="text-gray-700">Department</label>
-            <input
-              className="mt-1 block w-full px-4 py-2 bg-gray-100 border rounded-md"
+            <label className="text-sm font-medium text-gray-600">
+              Department
+            </label>
+            <select
+              className="mt-1 p-2 border rounded-lg bg-gray-50"
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              placeholder="Enter Your Department"
-              type="text"
-            />
+            >
+              <option value="" disabled>
+                Select your department
+              </option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Mathematics">Mathematics</option>
+              <option value="Business Administration">
+                Business Administration
+              </option>
+              {/* Add more department options as needed */}
+            </select>
           </div>
+
+          {/* Level Input */}
           <div className="flex flex-col">
-            <label className="text-gray-700">Level</label>
-            <input
-              className="mt-1 block w-full px-4 py-2 bg-gray-100 border rounded-md"
+            <label className="text-sm font-medium text-gray-600">Level</label>
+            <select
+              className="mt-1 p-2 border rounded-lg bg-gray-50"
               value={level}
               onChange={(e) => setLevel(e.target.value)}
-              placeholder="Enter Your Level"
-              type="text"
-            />
+            >
+              <option value="" disabled>
+                Select your level
+              </option>
+              <option value="100">100 Level</option>
+              <option value="200">200 Level</option>
+              <option value="300">300 Level</option>
+              <option value="400">400 Level</option>
+              <option value="500">500 Level</option>
+              {/* Add more level options as needed */}
+            </select>
           </div>
-        </div>
 
-        <div className="relative w-full h-64 bg-gray-100 rounded-lg mt-6 overflow-hidden">
-          <video
-            ref={videoRef}
-            controls
-            autoPlay
-            className="w-full h-full object-cover"
-          ></video>
-          <div className="absolute inset-0 flex items-center justify-center">
+          {/* Video Preview */}
+          <div className="relative flex flex-col items-center mt-8">
+            <video
+              ref={videoRef}
+              controls
+              autoPlay
+              className="w-full h-60 md:h-72 bg-gray-200 rounded-lg"
+            ></video>
             {!isrecording && !recordedVideo && (
-              <p className="text-gray-500">Video preview will appear here</p>
+              <p className="absolute inset-0 flex items-center justify-center text-gray-500">
+                Video preview will appear here
+              </p>
             )}
           </div>
-        </div>
 
-        <div className="flex justify-between mt-6">
-          <button
-            className="w-32 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-            onClick={startRecording}
-            disabled={isrecording}
-          >
-            {isrecording ? "Recording..." : "Start Recording"}
-          </button>
-          <button
-            className="w-32 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-            onClick={stopRecording}
-            disabled={!isrecording}
-          >
-            Stop Recording
-          </button>
-          <button
-            className={`w-32 py-2 ${
-              loading
-                ? "bg-gray-300 cursor-not-allowed"
-                : "bg-blue-500 hover:bg-blue-600 text-white"
-            } rounded-lg`}
-            onClick={handleSubmit}
-            disabled={loading || !recordedVideo || videoDuration > 3}
-          >
-            {loading ? (
-              <Spinner size="2rem" color="#894a8b" duration="1s" />
-            ) : (
-              "Submit"
-            )}
-          </button>
-        </div>
+          {/* Error Message */}
+          {error && (
+            <p className="text-center text-red-500 text-sm mt-4">{error}</p>
+          )}
 
-        <p className="text-red-500 text-sm text-center mt-4">{error}</p>
+          {/* Button Actions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+            <button
+              type="button"
+              className={`py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 ${
+                isrecording && "cursor-not-allowed opacity-50"
+              }`}
+              onClick={startRecording}
+              disabled={isrecording}
+            >
+              {isrecording ? "Recording..." : "Start Recording"}
+            </button>
 
-        <p className="text-gray-500 text-center text-xs italic">
-          Record face while facing straight for 2-3 seconds only
+            <button
+              type="button"
+              className="py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              onClick={stopRecording}
+              disabled={!isrecording}
+            >
+              Stop Recording
+            </button>
+
+            <button
+              type="button"
+              className="py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              onClick={handleFlipCamera}
+            >
+              Flip Camera
+            </button>
+
+            <button
+              type="button"
+              className={`py-2 px-4 ${
+                loading || !recordedVideo || videoDuration > 3
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-blue-500 hover:bg-blue-600"
+              } text-white rounded-lg`}
+              onClick={handleSubmit}
+              disabled={loading || !recordedVideo || videoDuration > 3}
+            >
+              {loading ? (
+                <Spinner size="2rem" color="#894a8b" duration="1s" />
+              ) : (
+                "Submit"
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Note */}
+        <p className="text-center text-xs text-gray-400 mt-4">
+          Please record a video of your face for 2-3 seconds facing straight.
         </p>
       </div>
     </div>

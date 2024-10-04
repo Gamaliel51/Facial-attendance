@@ -30,7 +30,6 @@ const AttendanceRecord = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch the attendance records from the backend
   const fetchRecords = async () => {
     setLoading(true);
     setError(null);
@@ -39,11 +38,10 @@ const AttendanceRecord = () => {
         course_code: courseCode,
       });
       if (response.data.length > 0) {
-        setAttendanceRecords(response.data); // Assuming you only need one record object
+        setAttendanceRecords(response.data);
       } else {
         setAttendanceRecords([]);
       }
-      // console.log("Attendance records:", JSON.stringify(response.data));
     } catch (error) {
       setError("Error fetching attendance records.");
       console.error("Error fetching attendance records:", error);
@@ -52,11 +50,9 @@ const AttendanceRecord = () => {
     }
   };
 
-  //attendance-file/
-
   const downloadAttendanceFile = async () => {
     try {
-     const payload = {
+      const payload = {
         date: attendanceRecords[0].date,
         attendance: attendanceRecords.flatMap((record) => record.attendance),
         course_code: attendanceRecords[0].course_code,
@@ -72,7 +68,6 @@ const AttendanceRecord = () => {
       });
 
       const url = window.URL.createObjectURL(blob);
-
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
@@ -92,76 +87,178 @@ const AttendanceRecord = () => {
   useEffect(() => {
     fetchRecords();
   }, []);
+
   const handlePrint = () => {
     window.print();
   };
 
   let globalCounter = 0;
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">{`Attendance Record for ${courseName}`}</h2>
-      {loading ? (
-        <Spinner size="2rem" color="#894a8b" />
-      ) : error ? (
-        <p>{error}</p>
-      ) : attendanceRecords ? (
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr>
-              <th className="border px-4 py-2">S/N</th>
-              <th className="border px-4 py-2">Matric</th>
-              <th className="border px-4 py-2">Name</th>
-              <th className="border px-4 py-2">Level</th>
-              <th className="border px-4 py-2">Department</th>
-              <th className="border px-4 py-2">Time</th>
-              <th className="border px-4 py-2">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-          {attendanceRecords.flatMap((record) =>
-            record.attendance.map((item) => {
-              globalCounter++; // Increment globalCounter for each attendance entry
-              return (
-                <tr key={`${item.matric}-${globalCounter}`}>
-                  <td className="border px-4 py-2">{globalCounter}</td>
-                  <td className="border px-4 py-2">{item.matric}</td>
-                  <td className="border px-4 py-2">{item.name}</td>
-                  <td className="border px-4 py-2">{item.level}</td>
-                  <td className="border px-4 py-2">{item.department}</td>
-                  <td className="border px-4 py-2">{item.time}</td>
-                  <td className="border px-4 py-2">{record.date}</td>
-                </tr>
-              );
-            })
-          )}
-          </tbody>
-        </table>
-      ) : (
-        <p>No attendance records found.</p>
-      )}
 
-      <div className="flex space-x-4 mt-4">
-        <button
-          onClick={fetchRecords}
-          className="bg-blue-500 text-white py-2 px-4 rounded"
-        >
-          Refresh Records
-        </button>
-        <button
-          onClick={downloadAttendanceFile}
-          className="bg-green-500 text-white py-2 px-4 rounded"
-        >
-          Download Attendance
-        </button>
-        <button
-          onClick={handlePrint}
-          className="bg-green-500 text-white py-2 px-4 rounded"
-        >
-          Print
-        </button>
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+      <div className="max-w-7xl w-full bg-white shadow-lg rounded-lg overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-3xl font-bold text-center text-gray-800">
+            Attendance Record for {courseName}
+          </h2>
+        </div>
+
+        <div className="p-6">
+          {loading ? (
+            <div className="flex justify-center items-center">
+              <Spinner size="3rem" color="#894a8b" />
+            </div>
+          ) : error ? (
+            <p className="text-center text-red-600">{error}</p>
+          ) : attendanceRecords.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-gray-50 border border-gray-200 rounded-lg">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="p-4 text-gray-600 text-left">S/N</th>
+                    <th className="p-4 text-gray-600 text-left">Matric</th>
+                    <th className="p-4 text-gray-600 text-left">Name</th>
+                    <th className="p-4 text-gray-600 text-left">Level</th>
+                    <th className="p-4 text-gray-600 text-left">Department</th>
+                    <th className="p-4 text-gray-600 text-left">Time</th>
+                    <th className="p-4 text-gray-600 text-left">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendanceRecords.flatMap((record) =>
+                    record.attendance.map((item) => {
+                      globalCounter++;
+                      return (
+                        <tr
+                          key={`${item.matric}-${globalCounter}`}
+                          className="border-b hover:bg-gray-100"
+                        >
+                          <td className="p-4 text-gray-700">{globalCounter}</td>
+                          <td className="p-4 text-gray-700">{item.matric}</td>
+                          <td className="p-4 text-gray-700">{item.name}</td>
+                          <td className="p-4 text-gray-700">{item.level}</td>
+                          <td className="p-4 text-gray-700">
+                            {item.department}
+                          </td>
+                          <td className="p-4 text-gray-700">{item.time}</td>
+                          <td className="p-4 text-gray-700">{record.date}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-center text-gray-500">
+              No attendance records found.
+            </p>
+          )}
+        </div>
+
+        <div className="p-6 flex flex-col md:flex-row justify-center space-y-4 md:space-y-0 md:space-x-4">
+          <button
+            onClick={fetchRecords}
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg shadow-md transition"
+          >
+            Refresh Records
+          </button>
+          <button
+            onClick={downloadAttendanceFile}
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg shadow-md transition"
+          >
+            Download Attendance
+          </button>
+          <button
+            onClick={handlePrint}
+            className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg shadow-md transition"
+          >
+            Print
+          </button>
+        </div>
       </div>
     </div>
   );
 };
+
+/**
+   return (
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-7xl mx-auto p-6 bg-white shadow-md rounded-lg">
+        <h2 className="text-3xl font-semibold text-center text-gray-800 mb-6">
+          Attendance Record for {courseName}
+        </h2>
+
+        {loading ? (
+          <div className="flex justify-center items-center">
+            <Spinner size="3rem" color="#894a8b" />
+          </div>
+        ) : error ? (
+          <p className="text-center text-red-600">{error}</p>
+        ) : attendanceRecords.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-collapse block md:table bg-gray-50">
+              <thead className="block md:table-header-group">
+                <tr className="border-b md:border-none block md:table-row absolute -top-full md:top-auto -left-full md:left-auto md:relative">
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">S/N</th>
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">Matric</th>
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">Name</th>
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">Level</th>
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">Department</th>
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">Time</th>
+                  <th className="block md:table-cell p-2 text-gray-600 text-center">Date</th>
+                </tr>
+              </thead>
+              <tbody className="block md:table-row-group">
+                {attendanceRecords.flatMap((record) =>
+                  record.attendance.map((item) => {
+                    globalCounter++;
+                    return (
+                      <tr
+                        key={`${item.matric}-${globalCounter}`}
+                        className="bg-white border-t md:border-none block md:table-row"
+                      >
+                        <td className="block md:table-cell p-2 text-center">{globalCounter}</td>
+                        <td className="block md:table-cell p-2 text-center">{item.matric}</td>
+                        <td className="block md:table-cell p-2 text-center">{item.name}</td>
+                        <td className="block md:table-cell p-2 text-center">{item.level}</td>
+                        <td className="block md:table-cell p-2 text-center">{item.department}</td>
+                        <td className="block md:table-cell p-2 text-center">{item.time}</td>
+                        <td className="block md:table-cell p-2 text-center">{record.date}</td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-center text-gray-500">No attendance records found.</p>
+        )}
+
+        <div className="flex flex-wrap justify-center space-x-4 mt-6">
+          <button
+            onClick={fetchRecords}
+            className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-lg shadow-md"
+          >
+            Refresh Records
+          </button>
+          <button
+            onClick={downloadAttendanceFile}
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-6 rounded-lg shadow-md"
+          >
+            Download Attendance
+          </button>
+          <button
+            onClick={handlePrint}
+            className="bg-purple-600 hover:bg-purple-700 text-white py-2 px-6 rounded-lg shadow-md"
+          >
+            Print
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+ */
 
 export default AttendanceRecord;
