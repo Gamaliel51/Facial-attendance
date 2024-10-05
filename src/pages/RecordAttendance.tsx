@@ -74,7 +74,7 @@ const VideoStream: React.FC = () => {
 
   // Capture video frames and send to backend using WebSocket
   const captureFrames = () => {
-    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:11545/ws/video/"); // WebSocket connection to backend
+    const ws = new WebSocket("ws://0.tcp.eu.ngrok.io:19460/ws/video/"); // WebSocket connection to backend
     wsRef.current = ws; // Store WebSocket reference
 
     const canvas = document.createElement("canvas");

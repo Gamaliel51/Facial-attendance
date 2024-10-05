@@ -22,22 +22,60 @@ const FacialRegPage = () => {
 
   const Link_id = window.location.pathname.split("/")[2];
   const course_code = Link_id.split("_")[0].replace("%20", "");
+  // useEffect(() => {
+  //   if (!submitSuccess) {
+  //     const video = videoRef.current;
+  //     if (isrecording) {
+  //       video.srcObject = mediaRecorder
+  //         ? new MediaStream(mediaRecorder.stream.getTracks())
+  //         : null;
+  //     } else {
+  //       video.srcObject = null;
+  //       if (recordedVideo) {
+  //         video.src = recordedVideo;
+  //         video.play();
+  //       }
+  //     }
+  //   }
+  // }, [isrecording, mediaRecorder, recordedVideo, submitSuccess]);
+
   useEffect(() => {
-    if (!submitSuccess) {
-      const video = videoRef.current;
-      if (isrecording) {
-        video.srcObject = mediaRecorder
-          ? new MediaStream(mediaRecorder.stream.getTracks())
-          : null;
+    const video = videoRef.current;
+    if (video) {
+      if (isrecording && mediaRecorder) {
+        video.srcObject = new MediaStream(mediaRecorder.stream.getTracks());
+      } else if (recordedVideo) {
+        video.src = recordedVideo;
+        video.srcObject = null; // Clear the srcObject when the recorded video is used
+        video.play();
       } else {
-        video.srcObject = null;
-        if (recordedVideo) {
-          video.src = recordedVideo;
-          video.play();
-        }
+        video.srcObject = null; // Clear when no video is being recorded or played
       }
     }
+
+    return () => {
+      // Cleanup any ongoing media streams when the component is unmounted or when recording stops
+      if (mediaRecorder) {
+        mediaRecorder.stream
+          .getTracks()
+          .forEach((track: MediaStreamTrack) => track.stop());
+      }
+      if (video) {
+        video.srcObject = null;
+      }
+    };
   }, [isrecording, mediaRecorder, recordedVideo, submitSuccess]);
+
+  const calculateDurationFromBlob = (blob: Blob) => {
+    return new Promise<number>((resolve, reject) => {
+      const videoElement = document.createElement("video");
+      videoElement.src = URL.createObjectURL(blob);
+      videoElement.onloadedmetadata = () => {
+        resolve(videoElement.duration);
+      };
+      videoElement.onerror = reject;
+    });
+  };
 
   const startRecording = async () => {
     try {
@@ -62,28 +100,23 @@ const FacialRegPage = () => {
         }
       };
 
-      newMediaRecorder.onstop = () => {
+      newMediaRecorder.onstop = async () => {
         const blob = new Blob(chunks.current, { type: "video/mp4" });
         const videoUrl = URL.createObjectURL(blob);
         setRecordedVideo(videoUrl);
         chunks.current = [];
 
         // Calculate video duration
-        const videoElement = document.createElement("video");
-        videoElement.src = videoUrl;
-        videoElement.onloadedmetadata = () => {
-          const duration = videoElement.duration;
+        const duration = await calculateDurationFromBlob(blob);
+        if (duration > 4) {
+          setError(
+            "Video is longer than 3 seconds. Please record a shorter video."
+          );
+          setRecordedVideo(null);
+        } else {
+          setError("");
           setVideoDuration(duration);
-          if (duration > 3) {
-            setError(
-              "Video is longer than 3 seconds. Please record a shorter video."
-            );
-            setLoading(false);
-            setRecordedVideo(null);
-          } else {
-            setError("");
-          }
-        };
+        }
       };
 
       newMediaRecorder.start();
@@ -97,30 +130,53 @@ const FacialRegPage = () => {
 
   const stopRecording = async () => {
     if (mediaRecorder) {
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks.current, { type: "video/mp4" });
         const videoUrl = URL.createObjectURL(blob);
         setRecordedVideo(videoUrl);
         chunks.current = [];
+        setIsRecording(false);
+        setMediaRecorder(null); // Clear recorder to avoid duplicate events
+
+        const duration = await calculateDurationFromBlob(blob);
+        if (duration > 4) {
+          setError(
+            "Video is longer than 3 seconds. Please record a shorter video."
+          );
+          setRecordedVideo(null);
+        } else {
+          setError("");
+        }
       };
       mediaRecorder.stop();
-      setIsRecording(false);
     }
   };
 
   const handleFlipCamera = async () => {
-    if (isrecording) {
-      // Stop the current recording before flipping
-      stopRecording();
+    try {
+      if (isrecording) {
+        // Stop the current recording before flipping
+        stopRecording();
+      }
+
+      // Toggle the camera
+      setFrontCamera(!frontCamera);
+
+      // Stop the media tracks before restarting the camera feed
+      if (mediaRecorder) {
+        mediaRecorder.stream
+          .getTracks()
+          .forEach((track: MediaStreamTrack) => track.stop());
+      }
+      // Restart the recording after flipping the camera
+      await startRecording(); // No need for a timeout here
+    } catch (err) {
+      setError("Unable to flip camera. Please try again.");
     }
-
-    // Toggle the camera
-    setFrontCamera(!frontCamera);
-
-    // Restart recording with the new camera
-    setTimeout(() => {
-      startRecording();
-    }, 500); // Adding a slight delay to allow time for the stream to reset
+    // // Restart recording with the new camera
+    // setTimeout(() => {
+    //   startRecording();
+    // }, 500); // Adding a slight delay to allow time for the stream to reset
   };
 
   // const handleFlipCamera = async () => {
@@ -135,9 +191,9 @@ const FacialRegPage = () => {
       setError("Please enter your name and matric number and record video");
       return;
     }
-    if (videoDuration > 3) {
+    if (videoDuration > 4) {
       setError(
-        "Video is longer than 3 seconds. Please record a shorter video."
+        "Video is longer than 4 seconds. Please record a shorter video."
       );
       return;
     }
@@ -205,7 +261,6 @@ const FacialRegPage = () => {
               placeholder="Enter your name"
             />
           </div>
-
           {/* Matric Number Input */}
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-600">
@@ -219,7 +274,6 @@ const FacialRegPage = () => {
               placeholder="Enter your matric number"
             />
           </div>
-
           {/* Department Input */}
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-600">
@@ -242,7 +296,6 @@ const FacialRegPage = () => {
               {/* Add more department options as needed */}
             </select>
           </div>
-
           {/* Level Input */}
           <div className="flex flex-col">
             <label className="text-sm font-medium text-gray-600">Level</label>
@@ -262,7 +315,6 @@ const FacialRegPage = () => {
               {/* Add more level options as needed */}
             </select>
           </div>
-
           {/* Video Preview */}
           <div className="relative flex flex-col items-center mt-8">
             <video
@@ -277,12 +329,10 @@ const FacialRegPage = () => {
               </p>
             )}
           </div>
-
           {/* Error Message */}
           {error && (
             <p className="text-center text-red-500 text-sm mt-4">{error}</p>
           )}
-
           {/* Button Actions */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
             <button

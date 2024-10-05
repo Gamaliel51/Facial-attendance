@@ -29,6 +29,14 @@ const FormModal: React.FC<FormModalProps> = ({
           <div className="text-center">
             <h2 className="text-xl font-semibold">Registration Link</h2>
             <p className="mt-4 text-gray-600">{registerStudent}</p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${registerStudent}`);
+                closeModal();
+              }}
+            >
+              Copy
+            </button>
           </div>
         )}
       </div>
@@ -37,7 +45,7 @@ const FormModal: React.FC<FormModalProps> = ({
 };
 
 export default FormModal;
- /**
+/**
   * 
   *  <tbody className="block md:table-row-group">
                 {attendanceRecords.flatMap((record) =>
