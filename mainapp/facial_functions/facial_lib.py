@@ -5,6 +5,20 @@ from keras_facenet import FaceNet
 import pickle
 
 
+from mtcnn.mtcnn import MTCNN
+from keras.src.applications.resnet import ResNet50
+from keras.api.applications.resnet import preprocess_input
+from keras.api.preprocessing import image
+from keras.api.models import Model
+from keras.api.layers import GlobalAveragePooling2D
+
+
+def normalize(embedding):
+    norm = np.linalg.norm(embedding)
+    if norm == 0:
+        return embedding  # In case of zero vector, return it as is.
+    return embedding / norm
+
 # Function to split a video into frames and save them in a folder
 # def split_video_to_frames(video_path, folder_name):
 #     # Create the folder if it doesn't exist
@@ -102,6 +116,69 @@ def split_video_to_frames(video_path, folder_name):
 #     print(f"Model updated with face embeddings from {folder_name}.")
 
 def train_facial_model(folder_name, model_file='facial_model.pkl'):
+    mtcnn = MTCNN()
+
+    # Load ResNet50 model pretrained on ImageNet and remove the top layers to get embeddings
+    base_model = ResNet50(weights='imagenet', include_top=False)
+    model = Model(inputs=base_model.input, outputs=GlobalAveragePooling2D()(base_model.output))
+
+    # Get the directory of the current file and go back one folder
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    # Construct the full path to 'mainapp/facial_functions/model_file'
+    model_file = os.path.join(os.getcwd(), 'mainapp', 'facial_functions', model_file)
+
+    # Load or create the model
+    if os.path.exists(model_file):
+        with open(model_file, 'rb') as f:
+            face_embeddings = pickle.load(f)
+    else:
+        face_embeddings = {}  # New dictionary to hold embeddings
+
+    # Path to the folder inside 'train' directory
+    folder_path = os.path.join(os.getcwd(), 'mainapp', 'facial_functions', 'train', folder_name)
+
+    # Go through all the images in the folder
+    embeddings = []
+    for image_file in os.listdir(folder_path):
+        image_path = os.path.join(folder_path, image_file)
+        img = cv2.imread(image_path)
+        rgb_image = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        faces = mtcnn.detect_faces(rgb_image)
+
+        if len(faces) > 0:
+            # Extract the bounding box of the first face
+            x, y, width, height = faces[0]['box']
+            face = rgb_image[y:y + height, x:x + width]
+
+            # Resize the face to match ResNet50 input (224x224)
+            resized_face = cv2.resize(face, (224, 224))
+
+            # Preprocess the face image for ResNet50
+            img_array = np.expand_dims(resized_face, axis=0)
+            img_array = preprocess_input(img_array)
+
+            # Generate embedding using ResNet50
+            embedding = model.predict(img_array).flatten()
+            embedding = normalize(embedding)
+
+            # Append the embedding to the list
+            embeddings.append(embedding.flatten())
+
+    # Store embeddings under the folder name (name/id)
+    if embeddings:
+        face_embeddings.update({f"{folder_name}": np.array(embeddings)})
+
+    # Save the model
+    with open(model_file, 'wb') as f:
+        pickle.dump(face_embeddings, f)
+
+    print(f"Model updated with face embeddings from {folder_name}.")
+    return True, f"Model updated with face embeddings from {folder_name}."
+
+
+def train_facial_model_facenet(folder_name, model_file='facial_model.pkl'):
     facenet = FaceNet()
 
     # Get the directory of the current file and go back one folder
@@ -128,13 +205,18 @@ def train_facial_model(folder_name, model_file='facial_model.pkl'):
         rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         # Detect face and extract embedding
-        faces = facenet.extract(rgb_image, threshold=0.95)
-        for face in faces:
-            embeddings.append(face['embedding'])
+        faces = facenet.extract(rgb_image, threshold=0.97)
+
+        face = faces[0]  # Only take the first (and only) face
+        embeddings.append(face['embedding'])
+
+        # for face in faces:
+        #     embeddings.append(face['embedding'])
 
     # Store embeddings under the folder name (name/id)
     if embeddings:
-        face_embeddings[folder_name] = np.array(embeddings)
+        # face_embeddings[folder_name] = np.array(embeddings)
+        face_embeddings.update({f"{[folder_name]}": np.array(embeddings)})
 
     # Save the model
     with open(model_file, 'wb') as f:
